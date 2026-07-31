@@ -144,6 +144,15 @@ def render_with_blender_cycles(hdr_path: str, camera_json_path: str, output_rend
             loc = cdata.get('camera_location', [0, -450.0, 110.0])
             cam.location = (loc[0]/100.0, loc[1]/100.0, loc[2]/100.0)
             
+    # Force unhide all objects and collections for render
+    for col in bpy.data.collections:
+        col.hide_render = False
+    for obj in bpy.data.objects:
+        obj.hide_render = False
+        
+    # Disable compositing nodes in case they are set up to filter or override output
+    scene.use_nodes = False
+
     # 6. Render & Save
     os.makedirs(os.path.dirname(output_render_path), exist_ok=True)
     scene.render.filepath = output_render_path
