@@ -1,6 +1,8 @@
 """
 Stage 1 - AI Environment Background Generation
-Uses SDXL on Replicate (Nano Banana) — fast, affordable, no local GPU needed.
+Uses Pollinations.ai (free, no API key required) as the primary generator,
+with Replicate SDXL as an optional paid fallback, and a procedural
+generator as the final offline fallback.
 Each prompt produces a unique photorealistic 1920x1080 background.
 """
 
@@ -10,42 +12,110 @@ import argparse
 import requests
 import io
 import time
+from urllib.parse import quote
 from PIL import Image, ImageEnhance
 import numpy as np
 
 # ============================================================
-# PASTE YOUR REPLICATE API TOKEN HERE
+# Optional: only needed if you want the paid Replicate fallback.
+# Leave blank to rely on Pollinations.ai (free) + procedural fallback.
 # Get it free: https://replicate.com/account/api-tokens
+# NEVER hardcode a real token here — load it from the environment
+# (e.g. `export REPLICATE_API_TOKEN=...` before running the script).
 # ============================================================
 REPLICATE_API_TOKEN = os.environ.get("REPLICATE_API_TOKEN", "")
+
+
+def generate_background_pollinations(prompt: str, output_path: str,
+                                      width: int = 1920, height: int = 1080,
+                                      negative_prompt: str = "",
+                                      model: str = "flux",
+                                      seed: int = None,
+                                      enhance: bool = True):
+    """
+    Generate an image using Pollinations.ai's free image API.
+    No API key required. Uses the 'flux' model by default (photorealistic,
+    good general-purpose quality). There is no native negative_prompt
+    parameter in this API, so exclusions are folded into the main prompt
+    text instead (e.g. "no people, no text, no watermark").
+    """
+    full_prompt = prompt
+    if negative_prompt:
+        exclusions = ", ".join(
+            f"no {term.strip()}" for term in negative_prompt.split(",") if term.strip()
+        )
+        full_prompt = f"{prompt}, {exclusions}"
+
+    encoded_prompt = quote(full_prompt)
+    url = f"https://image.pollinations.ai/prompt/{encoded_prompt}"
+
+    params = {
+        "width": width,
+        "height": height,
+        "model": model,
+        "nologo": "true",
+        "enhance": "true" if enhance else "false",
+        "private": "true",
+    }
+    if seed is not None:
+        params["seed"] = seed
+
+    print(f"[Pollinations] Prompt: '{prompt[:80]}...'")
+    print(f"[Pollinations] Requesting {width}x{height} image (model={model})...")
+
+    try:
+        response = requests.get(url, params=params, timeout=60)
+        response.raise_for_status()
+
+        image = Image.open(io.BytesIO(response.content))
+
+        # Light post-processing to match the original pipeline's look
+        image = ImageEnhance.Sharpness(image).enhance(1.15)
+        image = ImageEnhance.Contrast(image).enhance(1.05)
+        image = ImageEnhance.Color(image).enhance(1.05)
+
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        image.save(output_path, "PNG", quality=100)
+
+        file_size = os.path.getsize(output_path) / (1024 * 1024)
+        print(f"[Pollinations] Saved: {output_path}")
+        print(f"[Pollinations] Size: {image.size[0]}x{image.size[1]}, {file_size:.1f}MB")
+        return output_path
+
+    except Exception as e:
+        print(f"[Pollinations] Failed: {e}")
+        if REPLICATE_API_TOKEN:
+            print("[Pollinations] Falling back to Replicate...")
+            return generate_background(prompt, output_path, width, height)
+        print("[Pollinations] Falling back to procedural generator...")
+        return generate_procedural_background(prompt, output_path, width, height)
 
 
 def generate_background(prompt: str, output_path: str, width: int = 1920, height: int = 1080):
     """
     Generate photorealistic background using SDXL on Replicate.
+    Optional, paid fallback — only used if REPLICATE_API_TOKEN is set.
     Post-processes for sharpness and contrast.
     """
     import replicate
-    
+
     os.environ["REPLICATE_API_TOKEN"] = REPLICATE_API_TOKEN
-    
-    # Enhanced prompt for photorealism
+
     enhanced_prompt = (
         f"{prompt}, photorealistic, professional landscape photography, "
         f"8k ultra HD, sharp focus, natural lighting, rich colors, wide angle, "
         f"National Geographic style, highly detailed"
     )
-    
-    # What to avoid
+
     negative_prompt = (
         "car, vehicle, automobile, truck, people, person, text, watermark, "
         "logo, blurry, low quality, distorted, cartoon, CGI, 3d render, "
         "painting, illustration, drawing, artificial"
     )
-    
-    print(f"[Nano Banana] Prompt: '{prompt[:80]}...'")
-    print(f"[Nano Banana] Generating (3-10 seconds)...")
-    
+
+    print(f"[Replicate] Prompt: '{prompt[:80]}...'")
+    print(f"[Replicate] Generating (3-10 seconds)...")
+
     try:
         output = replicate.run(
             "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
@@ -61,49 +131,46 @@ def generate_background(prompt: str, output_path: str, width: int = 1920, height
                 "refine_steps": 15,
             }
         )
-        
-        # Get image URL
+
         image_url = output[0] if isinstance(output, list) else output
-        
-        print(f"[Nano Banana] Downloading image...")
+
+        print(f"[Replicate] Downloading image...")
         response = requests.get(image_url, timeout=30)
         response.raise_for_status()
-        
-        # Open image
+
         image = Image.open(io.BytesIO(response.content))
-        
-        # Post-process: sharpen + boost contrast
+
         image = ImageEnhance.Sharpness(image).enhance(1.2)
         image = ImageEnhance.Contrast(image).enhance(1.1)
         image = ImageEnhance.Color(image).enhance(1.1)
-        
-        # Save
+
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         image.save(output_path, "PNG", quality=100)
-        
+
         file_size = os.path.getsize(output_path) / (1024 * 1024)
-        print(f"[Nano Banana] ✅ Saved: {output_path}")
-        print(f"[Nano Banana] Size: {image.size[0]}x{image.size[1]}, {file_size:.1f}MB")
+        print(f"[Replicate] Saved: {output_path}")
+        print(f"[Replicate] Size: {image.size[0]}x{image.size[1]}, {file_size:.1f}MB")
         return output_path
-        
+
     except Exception as e:
-        print(f"[Nano Banana] ❌ Failed: {e}")
-        print(f"[Nano Banana] Falling back to procedural generator...")
+        print(f"[Replicate] Failed: {e}")
+        print(f"[Replicate] Falling back to procedural generator...")
         return generate_procedural_background(prompt, output_path, width, height)
 
 
-def generate_procedural_background(prompt: str, output_path: str, 
+def generate_procedural_background(prompt: str, output_path: str,
                                     width: int = 1920, height: int = 1080):
     """
     Procedural fallback — creates realistic gradient + texture backgrounds.
+    Fully offline, no network calls.
     """
     import numpy as np
     from PIL import ImageFilter
-    
+
     print(f"[Fallback] Generating procedural background...")
-    
+
     prompt_lower = prompt.lower()
-    
+
     if "night" in prompt_lower or "neon" in prompt_lower:
         env = "night"
     elif "forest" in prompt_lower or "mist" in prompt_lower or "pine" in prompt_lower:
@@ -116,18 +183,17 @@ def generate_procedural_background(prompt: str, output_path: str,
         env = "coastal"
     else:
         env = "default"
-    
+
     img_array = np.zeros((height, width, 3), dtype=np.float32)
     y_norm = np.linspace(0, 1, height).reshape(-1, 1)
     x_norm = np.linspace(0, 1, width).reshape(1, -1)
-    
-    # Texture noise
+
     seed = hash(prompt) % 100000
     np.random.seed(seed)
     noise = np.random.randn(height, width, 3) * 6
-    
+
     horizon = 0.5
-    
+
     color_schemes = {
         "night": {
             "sky": [8, 8, 28],
@@ -166,38 +232,34 @@ def generate_procedural_background(prompt: str, output_path: str,
             "ground_grad": [10, 10, 10]
         }
     }
-    
+
     scheme = color_schemes[env]
-    
-    # Sky gradient
+
     for c in range(3):
         img_array[:, :, c] = scheme["sky"][c] + y_norm * scheme["sky_grad"][c]
-    
-    # Ground
-    ground = y_norm >= horizon
+
+    ground_mask = (y_norm >= horizon).flatten()  # shape (height,)
     for c in range(3):
         ground_color = scheme["ground"][c] + (y_norm - horizon) * scheme["ground_grad"][c] * 5
-        img_array[ground, c] = ground_color[ground].flatten()
-    
-    # Add noise
+        # ground_color has shape (height, 1); broadcast across width, then apply row mask
+        img_array[ground_mask, :, c] = np.broadcast_to(ground_color, (height, width))[ground_mask]
+
     img_array += noise
-    
-    # Vignette
+
     cx, cy = width / 2, height / 2
     dist = np.sqrt((x_norm * width - cx)**2 + (y_norm * height - cy)**2)
     max_dist = np.sqrt(cx**2 + cy**2)
     vignette = 1 - (dist / max_dist) * 0.35
     vignette = np.clip(vignette, 0.65, 1.0)
     img_array *= vignette[:, :, np.newaxis]
-    
-    # Clip and save
+
     img_array = np.clip(img_array, 0, 255).astype(np.uint8)
     image = Image.fromarray(img_array)
     image = image.filter(ImageFilter.GaussianBlur(radius=0.5))
-    
+
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     image.save(output_path, "PNG", quality=100)
-    print(f"[Fallback] ✅ Saved: {output_path}")
+    print(f"[Fallback] Saved: {output_path}")
     return output_path
 
 
@@ -214,20 +276,15 @@ def main():
     parser.add_argument("--engine", type=str, default="pollinations",
                          choices=["pollinations", "replicate", "procedural"],
                          help="Which backend to use (default: pollinations, free)")
-    parser.add_argument("--use_fallback", action="store_true", help="Force synthetic fallback generator")
 
     args = parser.parse_args()
 
-    engine = args.engine
-    if args.use_fallback:
-        engine = "procedural"
-
-    if engine == "pollinations":
+    if args.engine == "pollinations":
         generate_background_pollinations(
             args.prompt, args.output, args.width, args.height,
             negative_prompt=args.negative_prompt, model=args.model, seed=args.seed
         )
-    elif engine == "replicate":
+    elif args.engine == "replicate":
         if REPLICATE_API_TOKEN:
             generate_background(args.prompt, args.output, args.width, args.height)
         else:
