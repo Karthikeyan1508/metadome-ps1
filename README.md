@@ -20,7 +20,6 @@
 8. [Per-Prompt Output Files](#per-prompt-output-files)
 9. [Significant Outputs](#significant-outputs)
 10. [Technical Highlights](#technical-highlights)
-11. [Hardware Notes](#hardware-notes)
 
 ---
 
@@ -532,13 +531,3 @@ A Cycles `is_shadow_catcher = True` plane captures contact shadows from the car'
 
 ---
 
-## Hardware Notes
-
-Tested on:
-- **GPU**: NVIDIA RTX 3050 Laptop GPU (4 GB VRAM)
-- **CPU**: Intel Core i7 12th Gen
-- **RAM**: 16 GB
-- **Blender**: 5.2 LTS
-- **Python**: 3.11 + CUDA 12.x
-
-Approximate render time per prompt: **60–90 seconds** (GPU, 128 samples, OptiX denoising).
