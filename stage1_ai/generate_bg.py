@@ -1,290 +1,396 @@
 """
 Stage 1 - AI Environment Background Generation
-Author: Ratish (Person A - AI & Data Pipeline)
-
-Generates background environment plates using HuggingFace Diffusers (SDXL/FLUX)
-or API fallbacks (Replicate / Skybox AI).
+FLUX.1-dev via HuggingFace Inference API — Optimized for photorealism.
+Free tier. Each prompt = unique high-quality 1920x1080 background.
 """
 
 import os
 import sys
-import json
 import argparse
+import requests
+import io
+import time
+from PIL import Image
 import numpy as np
-from PIL import Image, ImageDraw
 
-def generate_background_fallback(prompt: str, output_path: str, width: int = 1920, height: int = 1080):
+# ============================================================
+# PASTE YOUR HUGGINGFACE TOKEN HERE
+# Get it free from: https://huggingface.co/settings/tokens
+# ============================================================
+HF_TOKEN = os.environ.get("HF_TOKEN", "")
+
+API_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev"
+HEADERS = {"Authorization": f"Bearer {HF_TOKEN}"}
+
+
+def generate_background(prompt: str, output_path: str, width: int = 1920, height: int = 1080):
     """
-    Procedural fallback background generator when local GPU / API is unavailable.
-    Creates a high-contrast gradient scene tailored to the prompt keywords.
+    Generate photorealistic background using FLUX with optimized prompts.
     """
-    print(f"[Fallback Gen] Generating synthetic environment plate for: '{prompt[:40]}...'")
-    img = Image.new("RGB", (width, height))
-    draw = ImageDraw.Draw(img)
     
-    prompt_lower = prompt.lower()
+    # ============================================================
+    # QUALITY-OPTIMIZED PROMPT ENGINEERING
+    # ============================================================
     
-    # Identify environment type from prompt keywords
-    if "night" in prompt_lower or "neon" in prompt_lower:
-        env_type = "night"
-    elif "forest" in prompt_lower or "mist" in prompt_lower:
-        env_type = "forest"
-    elif "desert" in prompt_lower or "sand" in prompt_lower:
-        env_type = "desert"
-    elif "racetrack" in prompt_lower or "grid" in prompt_lower:
-        env_type = "racetrack"
-    elif "coastal" in prompt_lower or "sunset" in prompt_lower:
-        env_type = "coastal"
-    else:
-        env_type = "default"
-        
-    horizon_y = int(height * 0.55)
+    # Negative prompt: what we DON'T want in the image
+    negative_prompt = (
+        "car, vehicle, automobile, truck, people, person, text, watermark, "
+        "logo, signature, blurry, blur, low quality, low resolution, distorted, "
+        "cartoon, 3d render, CGI, artificial, fake, painting, illustration, drawing"
+    )
     
-    if env_type == "night":
-        # Dark purple to dark blue sky
-        for y in range(horizon_y):
-            ratio = y / horizon_y
-            r = int(10 + ratio * 15)
-            g = int(10 + ratio * 15)
-            b = int(25 + ratio * 35)
-            draw.line([(0, y), (width, y)], fill=(r, g, b))
-            
-        # Draw some bright neon rectangles (representing buildings/neon signs)
-        import random
-        # Seed random for deterministic outputs based on prompt
-        random.seed(hash(prompt) % 10000)
-        for _ in range(8):
-            sign_w = random.randint(30, 80)
-            sign_h = random.randint(100, 300)
-            sign_x = random.randint(100, width - 100)
-            sign_y = horizon_y - sign_h - random.randint(10, 50)
-            color = random.choice([(255, 0, 128), (0, 255, 255), (255, 255, 0), (0, 255, 0)])
-            draw.rectangle([sign_x, sign_y, sign_x + sign_w, sign_y + sign_h], outline=color, width=3)
-            
-        # Wet ground with reflections
-        for y in range(horizon_y, height):
-            ratio = (y - horizon_y) / (height - horizon_y)
-            val = int(15 + ratio * 15)
-            draw.line([(0, y), (width, y)], fill=(val, val, val + 5))
-            
-        # Draw reflection blobs on road
-        for _ in range(12):
-            ref_w = random.randint(50, 200)
-            ref_h = random.randint(4, 12)
-            ref_x = random.randint(0, width - ref_w)
-            ref_y = random.randint(horizon_y + 10, height - ref_h)
-            color = random.choice([(100, 0, 50), (0, 100, 100), (100, 100, 0)])
-            draw.ellipse([ref_x, ref_y, ref_x + ref_w, ref_y + ref_h], fill=color)
-
-    elif env_type == "forest":
-        # Misty grey-green sky
-        for y in range(horizon_y):
-            ratio = y / horizon_y
-            r = int(90 + ratio * 30)
-            g = int(105 + ratio * 25)
-            b = int(100 + ratio * 20)
-            draw.line([(0, y), (width, y)], fill=(r, g, b))
-            
-        # Draw soft white sun behind fog
-        sun_x, sun_y = int(width * 0.5), int(height * 0.25)
-        for r in range(150, 0, -4):
-            alpha = int(30 * (1.0 - r / 150))
-            draw.ellipse([sun_x - r, sun_y - r, sun_x + r, sun_y + r], fill=(255, 255, 255))
-            
-        # Draw soft tree silhouettes (vertical lines with some width)
-        import random
-        random.seed(hash(prompt) % 10000)
-        for _ in range(15):
-            tree_w = random.randint(8, 25)
-            tree_h = random.randint(150, 400)
-            tree_x = random.randint(50, width - 50)
-            tree_y = horizon_y - tree_h
-            draw.rectangle([tree_x, tree_y, tree_x + tree_w, horizon_y], fill=(45, 60, 50))
-            
-        # Damp asphalt ground
-        for y in range(horizon_y, height):
-            ratio = (y - horizon_y) / (height - horizon_y)
-            val = int(30 + ratio * 20)
-            draw.line([(0, y), (width, y)], fill=(val, val + 5, val))
-
-    elif env_type == "desert":
-        # Golden orange/red sky
-        for y in range(horizon_y):
-            ratio = y / horizon_y
-            r = int(240 - ratio * 40)
-            g = int(110 + ratio * 50)
-            b = int(20 + ratio * 40)
-            draw.line([(0, y), (width, y)], fill=(r, g, b))
-            
-        # Bright sun on right
-        sun_x, sun_y = int(width * 0.75), int(height * 0.2)
-        for r in range(90, 0, -3):
-            draw.ellipse([sun_x - r, sun_y - r, sun_x + r, sun_y + r], fill=(255, 240, 180))
-            
-        # Warm desert highway ground
-        for y in range(horizon_y, height):
-            ratio = (y - horizon_y) / (height - horizon_y)
-            val_road = int(35 + ratio * 25)
-            draw.line([(0, y), (width, y)], fill=(val_road + 30, val_road + 15, val_road))
-            
-        # Draw central asphalt highway perspective lane
-        draw.polygon([(int(width * 0.45), horizon_y), (int(width * 0.55), horizon_y), (int(width * 0.8), height), (int(width * 0.2), height)], fill=(40, 38, 38))
-
-    elif env_type == "racetrack":
-        # Steel grey moody overcast sky
-        for y in range(horizon_y):
-            ratio = y / horizon_y
-            r = int(50 + ratio * 40)
-            g = int(55 + ratio * 40)
-            b = int(65 + ratio * 40)
-            draw.line([(0, y), (width, y)], fill=(r, g, b))
-            
-        # Dark wet asphalt racetrack
-        for y in range(horizon_y, height):
-            ratio = (y - horizon_y) / (height - horizon_y)
-            val = int(20 + ratio * 25)
-            draw.line([(0, y), (width, y)], fill=(val, val, val + 2))
-            
-        # Draw white starting grid perspective lines
-        draw.line([(int(width * 0.45), horizon_y), (int(width * 0.15), height)], fill=(200, 200, 200), width=4)
-        draw.line([(int(width * 0.55), horizon_y), (int(width * 0.85), height)], fill=(200, 200, 200), width=4)
-        for i in range(1, 5):
-            y_pos = int(horizon_y + (height - horizon_y) * (i / 4.0))
-            w_offset = int((width * 0.1) + (width * 0.2) * (i / 4.0))
-            draw.line([(int(width * 0.5 - w_offset), y_pos), (int(width * 0.5 + w_offset), y_pos)], fill=(200, 200, 200), width=3)
-
-    elif env_type == "coastal":
-        # Pink/purple sunset sky
-        for y in range(horizon_y):
-            ratio = y / horizon_y
-            r = int(230 - ratio * 60)
-            g = int(70 + ratio * 60)
-            b = int(120 + ratio * 50)
-            draw.line([(0, y), (width, y)], fill=(r, g, b))
-            
-        # Sun setting at horizon center
-        sun_x, sun_y = int(width * 0.5), horizon_y
-        for r in range(100, 0, -4):
-            draw.ellipse([sun_x - r, sun_y - r, sun_x + r, sun_y + r], fill=(255, 210, 120))
-            
-        # Ground: Left side ocean, right side cliff road
-        for y in range(horizon_y, height):
-            ratio = (y - horizon_y) / (height - horizon_y)
-            sea_val = int(30 + ratio * 50)
-            road_val = int(25 + ratio * 35)
-            draw.line([(0, y), (int(width * 0.45), y)], fill=(10, 20 + sea_val // 2, sea_val))
-            draw.line([(int(width * 0.45), y), (width, y)], fill=(road_val, road_val, road_val))
-            
-    else:
-        # Default gradient
-        for y in range(horizon_y):
-            ratio = y / horizon_y
-            r = int(30 + ratio * 150)
-            g = int(40 + ratio * 130)
-            b = int(70 + ratio * 160)
-            draw.line([(0, y), (width, y)], fill=(r, g, b))
-            
-        sun_x, sun_y = int(width * 0.7), int(height * 0.25)
-        for r in range(80, 0, -2):
-            draw.ellipse([sun_x - r, sun_y - r, sun_x + r, sun_y + r], fill=(255, 240, 200))
-            
-        for y in range(horizon_y, height):
-            ratio = (y - horizon_y) / (height - horizon_y)
-            val = int(25 + ratio * 45)
-            draw.line([(0, y), (width, y)], fill=(val, val, val + 5))
-            
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    img.save(output_path, "PNG")
-    print(f"[Fallback Gen] Saved background plate to: {output_path}")
-    return output_path
-
-def generate_background_flux(prompt: str, output_path: str, width: int = 1920, height: int = 1080):
-    """
-    Generates background plate using HuggingFace Inference API for FLUX.
-    """
-    HF_TOKEN = os.environ.get("HF_TOKEN", "")
-    API_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev"
-    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    # Enhanced positive prompt with quality boosters
+    enhanced_prompt = (
+        f"{prompt}, "
+        "breathtaking, 8k ultra HD, photorealistic, professional landscape photography, "
+        "award-winning photo, National Geographic, sharp focus, natural lighting, "
+        "high contrast, rich colors, detailed texture, wide angle lens, 16:9 aspect ratio, "
+        "DSLR, RAW, unedited, realistic, hyperrealistic"
+    )
     
-    print(f"[FLUX HF] Generating: '{prompt[:80]}...'")
-    print(f"[FLUX HF] This takes 15-30 seconds...")
+    print(f"[FLUX] Generating: '{prompt[:60]}...'")
+    print(f"[FLUX] Resolution: {width}x{height}")
     
+    # ============================================================
+    # OPTIMIZED API PARAMETERS
+    # ============================================================
     payload = {
-        "inputs": f"{prompt}, photorealistic, 8k, professional photography",
+        "inputs": enhanced_prompt,
         "parameters": {
             "width": width,
             "height": height,
-            "num_inference_steps": 28,
-            "guidance_scale": 3.5,
+            "num_inference_steps": 30,      # More steps = better quality (was 28)
+            "guidance_scale": 5.0,           # Higher = follows prompt better (was 3.5)
+            "negative_prompt": negative_prompt,
         }
     }
     
-    import requests
-    import io
-    try:
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
-        if response.status_code == 200:
-            image = Image.open(io.BytesIO(response.content))
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            image.save(output_path)
-            print(f"[FLUX HF] ✅ Saved: {output_path}")
-            return output_path
-        else:
-            print(f"[FLUX HF] ❌ Error {response.status_code}: {response.text}")
-            raise Exception(f"API failed: {response.text}")
-    except Exception as e:
-        print(f"[FLUX HF Warning] FLUX generation failed: {e}. Switching to procedural background generator.")
-        return generate_background_fallback(prompt, output_path, width, height)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            print(f"[FLUX] Sending request (attempt {attempt+1}/{max_retries})...")
+            response = requests.post(API_URL, headers=HEADERS, json=payload, timeout=180)
+            
+            if response.status_code == 200:
+                image = Image.open(io.BytesIO(response.content))
+                
+                # ============================================================
+                # POST-PROCESSING: Enhance image quality
+                # ============================================================
+                image = enhance_image_quality(image)
+                
+                os.makedirs(os.path.dirname(output_path), exist_ok=True)
+                image.save(output_path, "PNG", quality=100)
+                
+                file_size_mb = os.path.getsize(output_path) / (1024 * 1024)
+                print(f"[FLUX] ✅ Saved: {output_path}")
+                print(f"[FLUX] Resolution: {image.size[0]}x{image.size[1]}, Size: {file_size_mb:.1f}MB")
+                return output_path
+                
+            elif response.status_code == 503:
+                wait_time = (attempt + 1) * 20
+                print(f"[FLUX] Model loading (cold start), waiting {wait_time}s...")
+                time.sleep(wait_time)
+                
+            elif response.status_code == 429:
+                print(f"[FLUX] Rate limited. Waiting 45s...")
+                time.sleep(45)
+                
+            else:
+                print(f"[FLUX] ❌ Error {response.status_code}")
+                try:
+                    error_msg = response.json()
+                    print(f"[FLUX] {error_msg}")
+                except:
+                    print(f"[FLUX] {response.text[:300]}")
+                    
+                if "loading" in str(response.text).lower():
+                    time.sleep(30)
+                    continue
+                break
+                
+        except requests.exceptions.Timeout:
+            print(f"[FLUX] Request timed out. Retrying...")
+            time.sleep(15)
+            
+        except Exception as e:
+            print(f"[FLUX] ❌ Failed: {e}")
+            break
+    
+    print(f"[FLUX] API failed. Using enhanced procedural fallback.")
+    return generate_enhanced_fallback(prompt, output_path, width, height)
 
-def generate_background_sdxl(prompt: str, output_path: str, width: int = 1920, height: int = 1080):
+
+def enhance_image_quality(image):
     """
-    Generates background plate using local Diffusers SDXL pipeline.
+    Post-process image to improve sharpness, contrast, and color.
     """
-    try:
-        import torch
-        from diffusers import StableDiffusionXLPipeline
+    from PIL import ImageEnhance
+    
+    # Convert to array
+    img_array = np.array(image, dtype=np.float32)
+    
+    # 1. Increase contrast slightly
+    mean = np.mean(img_array, axis=(0, 1), keepdims=True)
+    img_array = mean + (img_array - mean) * 1.1  # 10% contrast boost
+    
+    # 2. Clip values
+    img_array = np.clip(img_array, 0, 255).astype(np.uint8)
+    
+    # Convert back to PIL
+    image = Image.fromarray(img_array)
+    
+    # 3. Sharpen
+    enhancer = ImageEnhance.Sharpness(image)
+    image = enhancer.enhance(1.3)  # 30% sharper
+    
+    # 4. Boost color saturation slightly
+    enhancer = ImageEnhance.Color(image)
+    image = enhancer.enhance(1.15)  # 15% more vibrant
+    
+    return image
+
+
+def generate_enhanced_fallback(prompt: str, output_path: str, width: int = 1920, height: int = 1080):
+    """
+    Enhanced procedural fallback with gradients, noise texture, and vignette.
+    Creates more realistic-looking scenes than flat gradients.
+    """
+    from PIL import ImageFilter
+    
+    print(f"[Fallback+] Generating enhanced procedural background...")
+    
+    prompt_lower = prompt.lower()
+    
+    # Environment detection
+    if "night" in prompt_lower or "neon" in prompt_lower:
+        env = "night"
+    elif "forest" in prompt_lower or "mist" in prompt_lower or "pine" in prompt_lower:
+        env = "forest"
+    elif "desert" in prompt_lower or "sand" in prompt_lower or "golden hour" in prompt_lower:
+        env = "desert"
+    elif "racetrack" in prompt_lower or "grid" in prompt_lower or "tarmac" in prompt_lower:
+        env = "racetrack"
+    elif "coastal" in prompt_lower or "sunset" in prompt_lower or "ocean" in prompt_lower:
+        env = "coastal"
+    else:
+        env = "default"
+    
+    # Create base image
+    img_array = np.zeros((height, width, 3), dtype=np.float32)
+    y_norm = np.linspace(0, 1, height).reshape(-1, 1)
+    x_norm = np.linspace(0, 1, width).reshape(1, -1)
+    
+    # Generate random noise for texture (same seed per prompt = consistent)
+    seed = hash(prompt) % 100000
+    np.random.seed(seed)
+    noise = np.random.randn(height, width, 3) * 8  # Subtle noise texture
+    
+    # Horizon line
+    horizon = 0.5
+    
+    if env == "night":
+        # Deep night sky gradient
+        sky_r = 8 + y_norm * 18
+        sky_g = 8 + y_norm * 15
+        sky_b = 25 + y_norm * 35
         
-        print(f"[SDXL Gen] Initializing SDXL pipeline...")
-        print(f"[SDXL Gen] Loading model 'stabilityai/stable-diffusion-xl-base-1.0' (Downloading ~6.6GB model weights if first run)...")
-        model_id = "stabilityai/stable-diffusion-xl-base-1.0"
-        pipe = StableDiffusionXLPipeline.from_pretrained(
-            model_id, torch_dtype=torch.float16, variant="fp16", use_safetensors=True
-        )
-        pipe.to("cuda")
+        # Stars
+        star_mask = (np.random.rand(height, width) > 0.997) & (y_norm < horizon)
         
-        print(f"[SDXL Gen] Generating AI background image for prompt: '{prompt[:40]}...'")
-        negative_prompt = "car, vehicle, auto, traffic, text, watermark, blurred, low quality, distorted"
-        image = pipe(
-            prompt=prompt,
-            negative_prompt=negative_prompt,
-            width=width,
-            height=height,
-            num_inference_steps=30,
-            guidance_scale=7.5
-        ).images[0]
+        img_array[:, :, 0] = np.where(y_norm < horizon, sky_r, 12)
+        img_array[:, :, 1] = np.where(y_norm < horizon, sky_g, 12)
+        img_array[:, :, 2] = np.where(y_norm < horizon, sky_b, 18)
         
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        image.save(output_path)
-        print(f"[SDXL Gen PASS] Successfully saved background plate: {output_path}")
-        return output_path
-    except Exception as e:
-        print(f"[SDXL Gen Notice] Local SDXL GPU run unavailable or interrupted ({e}). Switching to procedural background generator.")
-        return generate_background_fallback(prompt, output_path, width, height)
+        # Stars
+        img_array[star_mask, :] = [200, 220, 255]
+        
+        # Wet ground reflection
+        ground = y_norm >= horizon
+        img_array[ground, 0] = 10 + (y_norm[ground] - horizon) * 10
+        img_array[ground, 1] = 10 + (y_norm[ground] - horizon) * 10
+        img_array[ground, 2] = 15 + (y_norm[ground] - horizon) * 12
+        
+        # Neon glow spots
+        for _ in range(5):
+            nx = int(np.random.uniform(100, width - 100))
+            ny = int(np.random.uniform(50, height * 0.35))
+            glow_radius = int(np.random.uniform(20, 60))
+            color = np.random.choice([[255, 0, 100], [0, 220, 255], [255, 180, 0]])
+            
+            y_min = max(0, ny - glow_radius)
+            y_max = min(height, ny + glow_radius)
+            x_min = max(0, nx - glow_radius)
+            x_max = min(width, nx + glow_radius)
+            
+            for c in range(3):
+                dist = np.sqrt((x_norm[:, x_min:x_max] * width - nx)**2 + 
+                              (y_norm[y_min:y_max, :] * height - ny)**2)
+                falloff = np.clip(1 - dist / glow_radius, 0, 1)
+                img_array[y_min:y_max, x_min:x_max, c] += color[c] * falloff * 0.4
+        
+    elif env == "forest":
+        # Misty atmosphere
+        sky_r = 90 + y_norm * 35
+        sky_g = 100 + y_norm * 30
+        sky_b = 95 + y_norm * 25
+        
+        img_array[:, :, 0] = np.where(y_norm < horizon, sky_r, 22)
+        img_array[:, :, 1] = np.where(y_norm < horizon, sky_g, 28)
+        img_array[:, :, 2] = np.where(y_norm < horizon, sky_b, 25)
+        
+        # Fog effect
+        fog = np.random.randn(height, width) * 5
+        img_array[:, :, 0] += fog * 0.3
+        img_array[:, :, 1] += fog * 0.4
+        img_array[:, :, 2] += fog * 0.3
+        
+        # Tree silhouettes
+        for _ in range(25):
+            tx = int(np.random.uniform(50, width - 50))
+            th = int(np.random.uniform(80, 350))
+            ty_start = max(0, int(height * horizon) - th)
+            tree_width = int(np.random.uniform(4, 20))
+            
+            if ty_start > 0:
+                img_array[ty_start:int(height * horizon), 
+                         tx - tree_width:tx + tree_width, :] = [20, 28, 22]
+        
+    elif env == "desert":
+        # Golden hour sky
+        sky_r = 235 - y_norm * 55
+        sky_g = 100 + y_norm * 65
+        sky_b = 25 + y_norm * 45
+        
+        img_array[:, :, 0] = np.where(y_norm < horizon, sky_r, 185)
+        img_array[:, :, 1] = np.where(y_norm < horizon, sky_g, 135)
+        img_array[:, :, 2] = np.where(y_norm < horizon, sky_b, 65)
+        
+        # Sun
+        sun_x, sun_y = int(width * 0.72), int(height * 0.22)
+        sun_dist = np.sqrt((x_norm * width - sun_x)**2 + (y_norm * height - sun_y)**2)
+        sun_glow = np.exp(-sun_dist / 100)
+        img_array[:, :, 0] += sun_glow * 30
+        img_array[:, :, 1] += sun_glow * 15
+        img_array[:, :, 2] -= sun_glow * 5
+        
+        # Heat shimmer effect
+        heat = np.sin(y_norm * 80 + x_norm * 20) * 3
+        img_array[:, :, 0] += heat * 0.5
+        
+    elif env == "racetrack":
+        # Moody overcast
+        sky_r = 50 + y_norm * 50
+        sky_g = 55 + y_norm * 50
+        sky_b = 65 + y_norm * 48
+        
+        img_array[:, :, 0] = np.where(y_norm < horizon, sky_r, 20)
+        img_array[:, :, 1] = np.where(y_norm < horizon, sky_g, 20)
+        img_array[:, :, 2] = np.where(y_norm < horizon, sky_b, 22)
+        
+        # Track perspective lines
+        cx = width // 2
+        for line_offset in [-1, 1]:
+            x1 = int(cx + line_offset * width * 0.02)
+            x2 = int(cx + line_offset * width * 0.35)
+            for y in range(int(height * horizon), height):
+                t = (y - height * horizon) / (height * (1 - horizon))
+                x = int(x1 + (x2 - x1) * t)
+                img_array[y, max(0, x-2):min(width, x+2), :] = [180, 180, 180]
+        
+        # Horizontal grid lines
+        for i in range(1, 6):
+            y_pos = int(height * horizon + (height * (1 - horizon)) * (i / 5))
+            line_width = int(40 + width * 0.15 * (i / 5))
+            img_array[y_pos-1:y_pos+1, cx - line_width:cx + line_width, :] = [200, 200, 200]
+    
+    elif env == "coastal":
+        # Sunset sky
+        sky_r = 225 - y_norm * 80
+        sky_g = 55 + y_norm * 75
+        sky_b = 105 + y_norm * 65
+        
+        img_array[:, :, 0] = sky_r
+        img_array[:, :, 1] = sky_g
+        img_array[:, :, 2] = sky_b
+        
+        # Ocean (left) + road (right)
+        ground = y_norm >= horizon
+        left = x_norm < 0.45
+        
+        for i in range(height):
+            if ground[i, 0]:
+                for j in range(width):
+                    if left[0, j]:
+                        # Ocean with wave variation
+                        wave = np.sin(j * 0.05 + i * 0.1) * 8
+                        img_array[i, j] = [12, 25 + wave, 55 + wave]
+                    else:
+                        # Road
+                        img_array[i, j] = [28, 28, 30]
+        
+        # Sun reflection on water
+        sun_x = width // 2
+        for y in range(int(height * horizon), height):
+            for j in range(width):
+                if left[0, j]:
+                    dist_from_sun = abs(j - sun_x)
+                    if dist_from_sun < 40:
+                        reflection = (1 - dist_from_sun / 40) * 80
+                        img_array[y, j, 0] += reflection * 0.6
+                        img_array[y, j, 1] += reflection * 0.3
+    else:
+        # Generic outdoor scene
+        img_array[:, :, 0] = 40 + y_norm * 180
+        img_array[:, :, 1] = 50 + y_norm * 160
+        img_array[:, :, 2] = 80 + y_norm * 200
+        
+        ground = y_norm >= horizon
+        img_array[ground, 0] = 55
+        img_array[ground, 1] = 55
+        img_array[ground, 2] = 60
+    
+    # Add noise texture
+    img_array += noise
+    
+    # Apply vignette
+    center_x, center_y = width / 2, height / 2
+    dist_from_center = np.sqrt((x_norm * width - center_x)**2 + (y_norm * height - center_y)**2)
+    max_dist = np.sqrt(center_x**2 + center_y**2)
+    vignette = 1 - (dist_from_center / max_dist) * 0.4  # Darken edges by 40%
+    vignette = np.clip(vignette, 0.6, 1.0)
+    
+    for c in range(3):
+        img_array[:, :, c] *= vignette
+    
+    # Clip and convert
+    img_array = np.clip(img_array, 0, 255).astype(np.uint8)
+    image = Image.fromarray(img_array)
+    
+    # Slight blur to mimic atmospheric haze
+    image = image.filter(ImageFilter.GaussianBlur(radius=0.5))
+    
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    image.save(output_path, "PNG", quality=100)
+    print(f"[Fallback+] ✅ Saved: {output_path}")
+    return output_path
+
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate AI Environment Background Plate")
-    parser.add_argument("--prompt", type=str, required=True, help="Text prompt for background")
-    parser.add_argument("--output", type=str, required=True, help="Output image file path (.png)")
-    parser.add_argument("--width", type=int, default=1920, help="Image width")
-    parser.add_argument("--height", type=int, default=1080, help="Image height")
-    parser.add_argument("--use_fallback", action="store_true", help="Force synthetic fallback generator")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--prompt", type=str, required=True)
+    parser.add_argument("--output", type=str, required=True)
+    parser.add_argument("--width", type=int, default=1920)
+    parser.add_argument("--height", type=int, default=1080)
     
     args = parser.parse_args()
     
-    if args.use_fallback:
-        generate_background_fallback(args.prompt, args.output, args.width, args.height)
+    if HF_TOKEN and HF_TOKEN != "hf_" and len(HF_TOKEN) > 10:
+        generate_background(args.prompt, args.output, args.width, args.height)
     else:
-        generate_background_flux(args.prompt, args.output, args.width, args.height)
+        print("[WARNING] No valid HuggingFace token. Using enhanced procedural fallback.")
+        generate_enhanced_fallback(args.prompt, args.output, args.width, args.height)
+
 
 if __name__ == "__main__":
     main()
