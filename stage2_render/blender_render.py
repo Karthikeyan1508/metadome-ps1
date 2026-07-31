@@ -57,16 +57,66 @@ def render_with_blender_cycles(hdr_path: str, camera_json_path: str, output_rend
     scene.render.engine = 'CYCLES'
     
     # Enable GPU device if available
+    # Enable GPU device if available (Cycles / OptiX)
     try:
         prefs = bpy.context.preferences.addons['cycles'].preferences
         prefs.get_devices()
-        for device in prefs.devices:
-            device.use = True
+        
+        # Prefer OptiX for RTX 3050 Laptop GPU
+        for device_type in ['OPTIX', 'CUDA']:
+            available = False
+            for device in prefs.devices:
+                if device.type == device_type:
+                    device.use = True
+                    available = True
+            if available:
+                prefs.compute_device_type = device_type
+                break
+                
         scene.cycles.device = 'GPU'
-    except Exception:
+        print(f"[Blender Cycles] Configured GPU device type: {prefs.compute_device_type}")
+    except Exception as e:
+        print(f"[Blender Cycles Warning] GPU configuration failed: {e}. Falling back to default device.")
         scene.cycles.device = 'CPU'
         
+    # Render Settings - Optimized for RTX 3050 4GB
     scene.cycles.samples = 128
+    scene.cycles.use_denoising = True
+    try:
+        scene.cycles.denoiser = 'OPTIX'
+    except Exception:
+        pass
+        
+    scene.cycles.use_adaptive_sampling = True
+    scene.cycles.adaptive_threshold = 0.05
+    
+    scene.cycles.max_bounces = 8
+    scene.cycles.diffuse_bounces = 3
+    scene.cycles.glossy_bounces = 3
+    try:
+        scene.cycles.transmission_bounces = 2
+        scene.cycles.volume_bounces = 0
+    except Exception:
+        pass
+        
+    try:
+        scene.cycles.tile_size = 256
+    except Exception:
+        pass
+        
+    # Color management
+    try:
+        scene.view_settings.view_transform = 'Filmic'
+        scene.view_settings.look = 'AgX - High Contrast'
+    except Exception:
+        try:
+            scene.view_settings.view_transform = 'AgX'
+            scene.view_settings.look = 'High Contrast'
+        except Exception:
+            pass
+            
+    scene.view_settings.exposure = 0.0
+    
     scene.render.resolution_x = 1920
     scene.render.resolution_y = 1080
     scene.render.film_transparent = True  # Transparent background for compositing
