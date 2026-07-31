@@ -1,0 +1,44 @@
+{
+  "project_name": "PS1 - Automotive Scene Generation",
+  "resolution": {
+    "width": 1920,
+    "height": 1080
+  },
+  "default_camera": {
+    "fov": 50.0,
+    "location": [0.0, -450.0, 110.0],
+    "rotation": [-3.5, 0.0, 0.0]
+  },
+  "prompts": [
+    {
+      "id": "prompt_01",
+      "name": "Urban Night Street",
+      "text": "Cinematic 8k photograph of a wet urban neon street at night, reflective rain puddles, high contrast streetlights, realistic pavement texture, photorealistic depth of field"
+    },
+    {
+      "id": "prompt_02",
+      "name": "Forest Mist",
+      "text": "Sun-dappled mountain forest road, morning mist breaking through dense evergreen trees, golden light rays, wet asphalt ground"
+    },
+    {
+      "id": "prompt_03",
+      "name": "Desert Highway",
+      "text": "Expansive Nevada desert highway at golden hour sunset, dramatic warm sun flares, cracked desert road, distant red rock mountains"
+    },
+    {
+      "id": "prompt_04",
+      "name": "Wet Racetrack",
+      "text": "Professional motorsport racetrack at dusk, wet asphalt reflection, pit lane stadium illumination, overcast moody atmosphere"
+    },
+    {
+      "id": "prompt_05",
+      "name": "Coastal Sunset",
+      "text": "Pacific coast highway cliff road during vibrant golden sunset, ocean waves crashing below, warm ambient light, smooth asphalt"
+    }
+  ],
+  "paths": {
+    "output_dir": "outputs",
+    "test_assets_dir": "test_assets",
+    "car_model_path": "assets/volvo.blend"
+  }
+}

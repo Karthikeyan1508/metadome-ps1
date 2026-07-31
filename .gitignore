@@ -1,0 +1,28 @@
+# Python caching
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Runtime generated outputs
+outputs/
+consistency_report.png
+
+# Mock / test assets
+test_assets/test_bg.png
+test_assets/test_env.hdr
+test_assets/test_env.exr
+test_assets/test_camera.json
+
+# Large model assets / 3D files (safety lock)
+assets/*.blend
+assets/*.fbx
+assets/*.obj
+assets/*.mtl
+assets/*.glb
+assets/*.gltf
+
+# IDE settings
+.vscode/
+.idea/
+.vs/

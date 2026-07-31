@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CameraParameterContract",
+  "type": "object",
+  "properties": {
+    "prompt_id": { "type": "string" },
+    "fov": { "type": "number", "minimum": 10.0, "maximum": 120.0 },
+    "camera_location": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 3,
+      "maxItems": 3,
+      "description": "[X, Y, Z] position relative to vehicle origin (0,0,0)"
+    },
+    "camera_rotation": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 3,
+      "maxItems": 3,
+      "description": "[Pitch, Yaw, Roll] in degrees"
+    },
+    "sun_direction": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 3,
+      "maxItems": 3,
+      "description": "Normalized vector towards key light source [X, Y, Z]"
+    },
+    "light_intensity_multiplier": { "type": "number", "default": 1.0 }
+  },
+  "required": ["fov", "camera_location", "camera_rotation"]
+}
