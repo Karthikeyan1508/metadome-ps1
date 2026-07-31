@@ -205,15 +205,38 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--prompt", type=str, required=True)
     parser.add_argument("--output", type=str, required=True)
+    parser.add_argument("--negative-prompt", type=str, default="",
+                         help="Comma-separated list of things to avoid (folded into the prompt for Pollinations)")
     parser.add_argument("--width", type=int, default=1920)
     parser.add_argument("--height", type=int, default=1080)
-    
+    parser.add_argument("--seed", type=int, default=None)
+    parser.add_argument("--model", type=str, default="flux", help="Pollinations model, e.g. flux or turbo")
+    parser.add_argument("--engine", type=str, default="pollinations",
+                         choices=["pollinations", "replicate", "procedural"],
+                         help="Which backend to use (default: pollinations, free)")
+    parser.add_argument("--use_fallback", action="store_true", help="Force synthetic fallback generator")
+
     args = parser.parse_args()
-    
-    if REPLICATE_API_TOKEN and REPLICATE_API_TOKEN != "r8_" and len(REPLICATE_API_TOKEN) > 5:
-        generate_background(args.prompt, args.output, args.width, args.height)
+
+    engine = args.engine
+    if args.use_fallback:
+        engine = "procedural"
+
+    if engine == "pollinations":
+        generate_background_pollinations(
+            args.prompt, args.output, args.width, args.height,
+            negative_prompt=args.negative_prompt, model=args.model, seed=args.seed
+        )
+    elif engine == "replicate":
+        if REPLICATE_API_TOKEN:
+            generate_background(args.prompt, args.output, args.width, args.height)
+        else:
+            print("[WARNING] No REPLICATE_API_TOKEN set. Using Pollinations instead.")
+            generate_background_pollinations(
+                args.prompt, args.output, args.width, args.height,
+                negative_prompt=args.negative_prompt, model=args.model, seed=args.seed
+            )
     else:
-        print("[WARNING] No Replicate API token found. Using procedural generator.")
         generate_procedural_background(args.prompt, args.output, args.width, args.height)
 
 

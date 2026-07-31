@@ -60,6 +60,8 @@ def run_pipeline(config_path: str = "shared/config.json", use_fallback: bool = F
 
         print("\n[Stage 1] Environment Generation")
 
+        negative_prompt = pitem.get("negative_prompt", "")
+
         cmd_bg = [
             sys.executable,
             "stage1_ai/generate_bg.py",
@@ -68,6 +70,9 @@ def run_pipeline(config_path: str = "shared/config.json", use_fallback: bool = F
             "--output",
             bg_path,
         ]
+
+        if negative_prompt:
+            cmd_bg.extend(["--negative-prompt", negative_prompt])
 
         if use_fallback:
             cmd_bg.append("--use_fallback")
