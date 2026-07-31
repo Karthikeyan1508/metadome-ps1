@@ -492,7 +492,7 @@ Each prompt generates a complete folder under `outputs/<prompt_id>/`:
 
 > Camera: Front three-quarter view. Morning mist forest road, damp asphalt, diffused overcast light.
 
-![Forest Mist Final Output](outputs/prompt_02/final_postprocessed.png)
+![Forest Mist Final Output](docs/images/prompt_02_forest_mist.png)
 
 ---
 
@@ -500,7 +500,7 @@ Each prompt generates a complete folder under `outputs/<prompt_id>/`:
 
 > Camera: High angle aligned with highway perspective. Golden hour desert, sand dunes, heat haze.
 
-![Desert Highway Final Output](outputs/prompt_03/final_postprocessed.png)
+![Desert Highway Final Output](docs/images/prompt_03_desert_highway.png)
 
 ---
 
@@ -508,7 +508,7 @@ Each prompt generates a complete folder under `outputs/<prompt_id>/`:
 
 > Camera: Front centered, pulled back. Dramatic overcast sky, wet tarmac, motorsport atmosphere.
 
-![Wet Racetrack Final Output](outputs/prompt_04/final_postprocessed.png)
+![Wet Racetrack Final Output](docs/images/prompt_04_wet_racetrack.png)
 
 ---
 
