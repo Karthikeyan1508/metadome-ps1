@@ -2,9 +2,18 @@
 Stage 1 - Camera Parameter & Horizon Matcher
 Author: Ratish (Person A - AI & Data Pipeline)
 
-Analyzes background plate depth and perspective vanishing lines to compute
-camera field-of-view (FOV), location [X, Y, Z], rotation [Pitch, Yaw, Roll],
-and sun light direction vector.
+Analyzes background plate perspective to compute camera field-of-view (FOV),
+location [X, Y, Z], rotation [Pitch, Yaw, Roll], and sun light direction.
+
+For road-based shots (prompt_02, 03, 04) pitch and roll are now DERIVED
+FROM THE IMAGE via horizon detection instead of hardcoded guesses, since
+each AI-generated background has a slightly different horizon. Camera
+distance/height stays a per-shot-type preset because absolute scale can't
+be recovered from a single 2D image without a depth/scale reference.
+
+Prompts 01 and 05 are static hero shots (no receding road), so there is
+nothing in the image to measure perspective from -- they keep the
+hand-tuned preset values as before.
 """
 
 import os

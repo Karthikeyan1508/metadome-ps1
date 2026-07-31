@@ -57,16 +57,66 @@ def render_with_blender_cycles(hdr_path: str, camera_json_path: str, output_rend
     scene.render.engine = 'CYCLES'
     
     # Enable GPU device if available
+    # Enable GPU device if available (Cycles / OptiX)
     try:
         prefs = bpy.context.preferences.addons['cycles'].preferences
         prefs.get_devices()
-        for device in prefs.devices:
-            device.use = True
+        
+        # Prefer OptiX for RTX 3050 Laptop GPU
+        for device_type in ['OPTIX', 'CUDA']:
+            available = False
+            for device in prefs.devices:
+                if device.type == device_type:
+                    device.use = True
+                    available = True
+            if available:
+                prefs.compute_device_type = device_type
+                break
+                
         scene.cycles.device = 'GPU'
-    except Exception:
+        print(f"[Blender Cycles] Configured GPU device type: {prefs.compute_device_type}")
+    except Exception as e:
+        print(f"[Blender Cycles Warning] GPU configuration failed: {e}. Falling back to default device.")
         scene.cycles.device = 'CPU'
         
+    # Render Settings - Optimized for RTX 3050 4GB
     scene.cycles.samples = 128
+    scene.cycles.use_denoising = True
+    try:
+        scene.cycles.denoiser = 'OPTIX'
+    except Exception:
+        pass
+        
+    scene.cycles.use_adaptive_sampling = True
+    scene.cycles.adaptive_threshold = 0.05
+    
+    scene.cycles.max_bounces = 8
+    scene.cycles.diffuse_bounces = 3
+    scene.cycles.glossy_bounces = 3
+    try:
+        scene.cycles.transmission_bounces = 2
+        scene.cycles.volume_bounces = 0
+    except Exception:
+        pass
+        
+    try:
+        scene.cycles.tile_size = 256
+    except Exception:
+        pass
+        
+    # Color management
+    try:
+        scene.view_settings.view_transform = 'Filmic'
+        scene.view_settings.look = 'AgX - High Contrast'
+    except Exception:
+        try:
+            scene.view_settings.view_transform = 'AgX'
+            scene.view_settings.look = 'High Contrast'
+        except Exception:
+            pass
+            
+    scene.view_settings.exposure = 0.0
+    
     scene.render.resolution_x = 1920
     scene.render.resolution_y = 1080
     scene.render.film_transparent = True  # Transparent background for compositing
@@ -127,15 +177,17 @@ def render_with_blender_cycles(hdr_path: str, camera_json_path: str, output_rend
         car.data.materials.append(mat)
         
     # 5. Position Camera from camera.json
-    bpy.ops.object.camera_add(location=(0, -4.5, 1.1), rotation=(1.51, 0, 0))
+    bpy.ops.object.camera_add(location=(0, -4.5, 1.1))
     cam = bpy.context.active_object
     scene.camera = cam
     
+    fov = 50.0
     if os.path.exists(camera_json_path):
         with open(camera_json_path, 'r') as f:
             cdata = json.load(f)
             loc = cdata.get('camera_location', [0, -450.0, 110.0])
             cam.location = (loc[0]/100.0, loc[1]/100.0, loc[2]/100.0)
+            fov = cdata.get('fov', 50.0)
             
     # 6. Render & Save
     os.makedirs(os.path.dirname(output_render_path), exist_ok=True)
