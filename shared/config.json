@@ -13,22 +13,37 @@
     {
       "id": "prompt_01",
       "name": "Urban Night Street",
-      "text": "Cinematic 8k photograph of a wet urban neon street at night, reflective rain puddles, high contrast streetlights, realistic pavement texture, photorealistic depth of field"
+      "text": "wet city street at night, neon signs reflecting in rain puddles, cinematic lighting, bokeh city lights in background, dark blue hour sky, asphalt road, photorealistic",
+      "camera": "front_three_quarter_hero",
+      "negative_prompt": "daylight, sunny, people, text, watermark, blurry car"
     },
     {
       "id": "prompt_02",
       "name": "Forest Mist",
-      "text": "Sun-dappled mountain forest road, morning mist breaking through dense evergreen trees, golden light rays, wet asphalt ground"
+      "text": "forest road, morning mist between tall pine trees, soft diffused overcast light, damp dark asphalt, fog particles in air, photorealistic nature photography, shallow depth of field background",
+      "camera": "side_profile_telephoto",
+      "negative_prompt": "sunlight, harsh shadows, buildings, cars, people, text"
     },
     {
       "id": "prompt_03",
       "name": "Desert Highway",
-      "text": "Expansive Nevada desert highway at golden hour sunset, dramatic warm sun flares, cracked desert road, distant red rock mountains"
+      "text": "desert highway, golden hour, sand dunes stretching to horizon, harsh directional warm sunlight, heat haze on asphalt, dust particles in air, photorealistic landscape photography",
+      "camera": "overhead_high_angle",
+      "negative_prompt": "night, overcast, green vegetation, buildings, people, text"
     },
     {
       "id": "prompt_04",
       "name": "Wet Racetrack",
-      "text": "Professional motorsport racetrack at dusk, wet asphalt reflection, pit lane stadium illumination, overcast moody atmosphere"
+      "text": "racetrack starting grid, dramatic overcast sky, wet tarmac with painted white grid lines, grandstands blurred in distance, moody atmosphere, photorealistic motorsport photography",
+      "camera": "low_angle_aggressive_front",
+      "negative_prompt": "sunny, blue sky, street cars, people, text"
+    },
+    {
+      "id": "prompt_05",
+      "name": "Coastal Sunset",
+      "text": "coastal highway at sunset, ocean on one side, cliffs on the other, warm orange-pink sky gradient, long shadows stretching across asphalt, palm tree silhouettes, photorealistic",
+      "camera": "rear_three_quarter",
+      "negative_prompt": "night, overcast, snow, buildings, people, text"
     }
   ],
   "paths": {

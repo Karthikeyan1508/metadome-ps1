@@ -45,37 +45,37 @@ def extract_camera_parameters(
     h, w, _ = img.shape
 
     # 5 different professional car advertising angles
-    # Distances in cm (e.g. 580.0 = 5.8 meters)
+    # Distances in cm (e.g. 550.0 = 5.5 meters)
     if "prompt_01" in prompt_id:
-        # Prompt 1: Front Three-Quarter (Hero Shot)
-        fov = 48.0
-        camera_location = [-420.0, -420.0, 130.0]
-        camera_rotation = [-3.5, 0.0, 0.0]
-    elif "prompt_02" in prompt_id:
-        # Prompt 2: Telephoto Side Profile View (Elegant profile)
-        fov = 55.0
-        camera_location = [-620.0, 0.0, 110.0]
-        camera_rotation = [-2.0, 0.0, 0.0]
-    elif "prompt_03" in prompt_id:
-        # Prompt 3: Overhead / High-Angle Diagonal (Dramatic landscape/road combo)
+        # Prompt 1: Front Three-Quarter — pulled back, clean hero shot
         fov = 45.0
-        camera_location = [380.0, -420.0, 260.0]
-        camera_rotation = [-15.0, 0.0, 0.0]
-    elif "prompt_04" in prompt_id:
-        # Prompt 4: Low-Angle Aggressive Front (Zoomed out to avoid clipping front bumper)
-        fov = 42.0
-        camera_location = [0.0, -580.0, 70.0]
-        camera_rotation = [-1.5, 0.0, 0.0]
-    elif "prompt_05" in prompt_id:
-        # Prompt 5: Rear Three-Quarter (Zoomed out to avoid clipping rear bumper)
+        camera_location = [-550.0, -550.0, 140.0]
+        camera_rotation = [-5.0, 0.0, 0.0]
+    elif "prompt_02" in prompt_id:
+        # Prompt 2: Side Profile — pulled far back, car centered small in frame
         fov = 50.0
-        camera_location = [-400.0, 420.0, 130.0]
-        camera_rotation = [-3.5, 0.0, 0.0]
+        camera_location = [-800.0, 0.0, 120.0]
+        camera_rotation = [-3.0, 0.0, 0.0]
+    elif "prompt_03" in prompt_id:
+        # Prompt 3: High Angle Diagonal — elevated but pulled back for full view
+        fov = 40.0
+        camera_location = [-500.0, -500.0, 350.0]
+        camera_rotation = [-20.0, 0.0, 0.0]
+    elif "prompt_04" in prompt_id:
+        # Prompt 4: Front Centered — pulled way back, not aggressive
+        fov = 40.0
+        camera_location = [0.0, -700.0, 120.0]
+        camera_rotation = [-4.0, 0.0, 0.0]
+    elif "prompt_05" in prompt_id:
+        # Prompt 5: Rear Three-Quarter — clean distance, full rear visible
+        fov = 45.0
+        camera_location = [-550.0, 550.0, 140.0]
+        camera_rotation = [-5.0, 0.0, 0.0]
     else:
         # Default front three-quarter fallback
         fov = 50.0
-        camera_location = [-420.0, -420.0, 130.0]
-        camera_rotation = [-3.5, 0.0, 0.0]
+        camera_location = [-550.0, -550.0, 140.0]
+        camera_rotation = [-5.0, 0.0, 0.0]
 
     light_multiplier = 1.5
 

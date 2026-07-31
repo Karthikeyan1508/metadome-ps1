@@ -46,10 +46,12 @@ class DepthEstimator:
         image = cv2.imread(input_image)
 
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        from PIL import Image
+        pil_image = Image.fromarray(image_rgb)
 
         print("[Depth] Estimating depth...")
 
-        result = self.pipe(image_rgb)
+        result = self.pipe(pil_image)
 
         depth = np.array(result["depth"])
 
