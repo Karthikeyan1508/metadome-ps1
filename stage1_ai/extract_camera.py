@@ -19,12 +19,41 @@ def extract_camera_parameters(prompt_id: str, input_image_path: str, output_json
     Computes camera pose relative to origin (0,0,0) where car is seated.
     Outputs standard camera.json schema.
     """
-    print(f"[Camera Matcher] Analyzing perspective for: {input_image_path}")
+    print(f"[Camera Matcher] Analyzing perspective for: {input_image_path} (ID: {prompt_id})")
     
-    # Default automotive camera framing standards
-    fov = 50.0  # 50mm focal length standard
-    cam_location = [0.0, -450.0, 110.0]  # 4.5m back, 1.1m camera height
-    cam_rotation = [-3.5, 0.0, 0.0]     # -3.5 deg pitch down towards horizon
+    # 5 different professional car advertising angles
+    # Distances in cm (e.g. 580.0 = 5.8 meters)
+    if "prompt_01" in prompt_id:
+        # Prompt 1: Front Three-Quarter (Hero Shot)
+        fov = 48.0
+        cam_location = [-420.0, -420.0, 130.0]
+        cam_rotation = [-3.5, 0.0, 0.0]
+    elif "prompt_02" in prompt_id:
+        # Prompt 2: Telephoto Side Profile View (Elegant profile)
+        fov = 55.0
+        cam_location = [-620.0, 0.0, 110.0]
+        cam_rotation = [-2.0, 0.0, 0.0]
+    elif "prompt_03" in prompt_id:
+        # Prompt 3: Overhead / High-Angle Diagonal (Dramatic landscape/road combo)
+        fov = 45.0
+        cam_location = [380.0, -420.0, 260.0]
+        cam_rotation = [-15.0, 0.0, 0.0]
+    elif "prompt_04" in prompt_id:
+        # Prompt 4: Low-Angle Aggressive Front (Zoomed out to avoid clipping front bumper)
+        fov = 42.0
+        cam_location = [0.0, -580.0, 70.0]
+        cam_rotation = [-1.5, 0.0, 0.0]
+    elif "prompt_05" in prompt_id:
+        # Prompt 5: Rear Three-Quarter (Zoomed out to avoid clipping rear bumper)
+        fov = 50.0
+        cam_location = [-400.0, 420.0, 130.0]
+        cam_rotation = [-3.5, 0.0, 0.0]
+    else:
+        # Default front three-quarter fallback
+        fov = 50.0
+        cam_location = [-420.0, -420.0, 130.0]
+        cam_rotation = [-3.5, 0.0, 0.0]
+        
     sun_dir = [0.5, 0.5, 0.707]
     
     if os.path.exists(input_image_path):

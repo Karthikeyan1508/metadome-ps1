@@ -134,15 +134,32 @@ def render_with_blender_cycles(hdr_path: str, camera_json_path: str, output_rend
             car.data.materials.append(mat)
         
     # 5. Position Camera from camera.json
-    bpy.ops.object.camera_add(location=(0, -4.5, 1.1), rotation=(1.51, 0, 0))
+    bpy.ops.object.camera_add(location=(0, -4.5, 1.1))
     cam = bpy.context.active_object
     scene.camera = cam
     
+    fov = 50.0
     if os.path.exists(camera_json_path):
         with open(camera_json_path, 'r') as f:
             cdata = json.load(f)
             loc = cdata.get('camera_location', [0, -450.0, 110.0])
             cam.location = (loc[0]/100.0, loc[1]/100.0, loc[2]/100.0)
+            fov = cdata.get('fov', 50.0)
+            
+    # Set camera field of view in radians
+    import math
+    cam.data.angle = math.radians(fov)
+    
+    # Create target empty for camera tracking at center height of Volvo (z=0.55m)
+    target = bpy.data.objects.new("CameraTarget", None)
+    target.location = (0.0, 0.0, 0.55)
+    scene.collection.objects.link(target)
+    
+    # Add Track To constraint pointing at the target Empty
+    constraint = cam.constraints.new(type='TRACK_TO')
+    constraint.target = target
+    constraint.track_axis = 'TRACK_NEGATIVE_Z'
+    constraint.up_axis = 'UP_Y'
             
     # Force unhide all objects and collections for render
     for col in bpy.data.collections:
