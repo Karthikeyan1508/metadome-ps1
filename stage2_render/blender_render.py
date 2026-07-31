@@ -147,7 +147,25 @@ def render_with_blender_cycles(hdr_path: str, camera_json_path: str, output_rend
     # 6. Render & Save
     os.makedirs(os.path.dirname(output_render_path), exist_ok=True)
     scene.render.filepath = output_render_path
-    bpy.ops.render.render(write_still=True)
+    
+    try:
+        print("[Blender Cycles] Triggering path-traced Cycles render...")
+        bpy.ops.render.render(write_still=True)
+    except Exception as e:
+        print(f"[Blender Cycles Warning] Render execution error: {e}")
+        print("[Blender Cycles Warning] Fallback triggered: Retrying with CPU compute...")
+        
+        # Disable GPU devices and set device to CPU
+        scene.cycles.device = 'CPU'
+        try:
+            prefs = bpy.context.preferences.addons['cycles'].preferences
+            prefs.compute_device_type = 'NONE'
+        except Exception:
+            pass
+            
+        # Retry render
+        bpy.ops.render.render(write_still=True)
+        
     print(f"[Blender Cycles PASS] Successfully saved path-traced vehicle render: {output_render_path}")
     return True
 
