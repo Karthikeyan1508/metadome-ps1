@@ -51,14 +51,8 @@ def render_with_blender_cycles(hdr_path: str, camera_json_path: str, output_rend
 
     print(f"[Blender Cycles] Initializing path-traced render scene...")
     
-    # 1. Reset factory scene or load native .blend
-    if car_model_path.endswith('.blend') and os.path.exists(car_model_path):
-        print(f"[Blender Cycles] Loading native vehicle scene file: {car_model_path}")
-        bpy.ops.wm.open_mainfile(filepath=car_model_path)
-    else:
-        print("[Blender Cycles] Creating empty workspace for mesh import...")
-        bpy.ops.wm.read_factory_settings(use_empty=True)
-        
+    # 1. Reset factory scene
+    bpy.ops.wm.read_factory_settings(use_empty=True)
     scene = bpy.context.scene
     scene.render.engine = 'CYCLES'
     
@@ -109,29 +103,28 @@ def render_with_blender_cycles(hdr_path: str, camera_json_path: str, output_rend
     ground.name = "Ground_Shadow_Catcher"
     ground.is_shadow_catcher = True
     
-    # 4. Import Vehicle Model if not loading native .blend
-    if not car_model_path.endswith('.blend'):
-        if car_model_path and os.path.exists(car_model_path):
-            if car_model_path.endswith('.glb') or car_model_path.endswith('.gltf'):
-                bpy.ops.import_scene.gltf(filepath=car_model_path)
-            elif car_model_path.endswith('.fbx'):
-                bpy.ops.import_scene.fbx(filepath=car_model_path)
-            elif car_model_path.endswith('.obj'):
-                bpy.ops.wm.obj_import(filepath=car_model_path)
-        else:
-            # Create fallback vehicle chassis
-            bpy.ops.mesh.primitive_cube_add(size=2.0, location=(0, 0, 0.75))
-            car = bpy.context.active_object
-            car.scale = (2.1, 1.0, 0.6)
-            
-            mat = bpy.data.materials.new(name="MetallicCarPaint")
-            mat.use_nodes = True
-            bsdf = mat.node_tree.nodes["Principled BSDF"]
-            bsdf.inputs['Base Color'].default_value = (0.05, 0.2, 0.8, 1.0)
-            bsdf.inputs['Metallic'].default_value = 0.95
-            bsdf.inputs['Roughness'].default_value = 0.1
-            bsdf.inputs['Clearcoat'].default_value = 1.0
-            car.data.materials.append(mat)
+    # 4. Import Vehicle Model (OBJ / FBX / GLTF)
+    if car_model_path and os.path.exists(car_model_path):
+        if car_model_path.endswith('.glb') or car_model_path.endswith('.gltf'):
+            bpy.ops.import_scene.gltf(filepath=car_model_path)
+        elif car_model_path.endswith('.fbx'):
+            bpy.ops.import_scene.fbx(filepath=car_model_path)
+        elif car_model_path.endswith('.obj'):
+            bpy.ops.wm.obj_import(filepath=car_model_path)
+    else:
+        # Create fallback vehicle chassis
+        bpy.ops.mesh.primitive_cube_add(size=2.0, location=(0, 0, 0.75))
+        car = bpy.context.active_object
+        car.scale = (2.1, 1.0, 0.6)
+        
+        mat = bpy.data.materials.new(name="MetallicCarPaint")
+        mat.use_nodes = True
+        bsdf = mat.node_tree.nodes["Principled BSDF"]
+        bsdf.inputs['Base Color'].default_value = (0.05, 0.2, 0.8, 1.0)
+        bsdf.inputs['Metallic'].default_value = 0.95
+        bsdf.inputs['Roughness'].default_value = 0.1
+        bsdf.inputs['Clearcoat'].default_value = 1.0
+        car.data.materials.append(mat)
         
     # 5. Position Camera from camera.json
     bpy.ops.object.camera_add(location=(0, -4.5, 1.1), rotation=(1.51, 0, 0))
@@ -147,25 +140,7 @@ def render_with_blender_cycles(hdr_path: str, camera_json_path: str, output_rend
     # 6. Render & Save
     os.makedirs(os.path.dirname(output_render_path), exist_ok=True)
     scene.render.filepath = output_render_path
-    
-    try:
-        print("[Blender Cycles] Triggering path-traced Cycles render...")
-        bpy.ops.render.render(write_still=True)
-    except Exception as e:
-        print(f"[Blender Cycles Warning] Render execution error: {e}")
-        print("[Blender Cycles Warning] Fallback triggered: Retrying with CPU compute...")
-        
-        # Disable GPU devices and set device to CPU
-        scene.cycles.device = 'CPU'
-        try:
-            prefs = bpy.context.preferences.addons['cycles'].preferences
-            prefs.compute_device_type = 'NONE'
-        except Exception:
-            pass
-            
-        # Retry render
-        bpy.ops.render.render(write_still=True)
-        
+    bpy.ops.render.render(write_still=True)
     print(f"[Blender Cycles PASS] Successfully saved path-traced vehicle render: {output_render_path}")
     return True
 
