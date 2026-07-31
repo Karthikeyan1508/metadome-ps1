@@ -60,8 +60,6 @@ def run_pipeline(config_path: str = "shared/config.json", use_fallback: bool = F
 
         print("\n[Stage 1] Environment Generation")
 
-        negative_prompt = pitem.get("negative_prompt", "")
-
         cmd_bg = [
             sys.executable,
             "stage1_ai/generate_bg.py",
@@ -70,9 +68,6 @@ def run_pipeline(config_path: str = "shared/config.json", use_fallback: bool = F
             "--output",
             bg_path,
         ]
-
-        if negative_prompt:
-            cmd_bg.extend(["--negative-prompt", negative_prompt])
 
         if use_fallback:
             cmd_bg.append("--use_fallback")
@@ -140,7 +135,6 @@ def run_pipeline(config_path: str = "shared/config.json", use_fallback: bool = F
         print("\n[Stage 2] Path-Traced Rendering")
 
         blender_exe = r"C:\Program Files\Blender Foundation\Blender 5.2\blender.exe"
-        car_model_path = config.get("paths", {}).get("car_model_path", "assets/Volvo S90.blend")
 
         if os.path.exists(blender_exe):
 
@@ -153,7 +147,7 @@ def run_pipeline(config_path: str = "shared/config.json", use_fallback: bool = F
                 hdr_path,
                 cam_path,
                 render_path,
-                car_model_path,
+                "assets/car_model.obj",
             ]
 
             subprocess.run(cmd_render, check=True)
@@ -167,7 +161,6 @@ def run_pipeline(config_path: str = "shared/config.json", use_fallback: bool = F
                     hdr_path,
                     cam_path,
                     render_path,
-                    car_model_path,
                 ],
                 check=True,
             )

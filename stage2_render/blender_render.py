@@ -51,15 +51,9 @@ def render_with_blender_cycles(hdr_path: str, camera_json_path: str, output_rend
 
     print(f"[Blender Cycles] Initializing path-traced render scene...")
     
-    # 1. Reset factory scene or load native .blend
-    if car_model_path.endswith('.blend') and os.path.exists(car_model_path):
-        print(f"[Blender Cycles] Loading native vehicle scene file: {car_model_path}")
-        bpy.ops.wm.open_mainfile(filepath=car_model_path)
-        scene = bpy.context.scene
-    else:
-        bpy.ops.wm.read_factory_settings(use_empty=True)
-        scene = bpy.context.scene
-        
+    # 1. Reset factory scene
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    scene = bpy.context.scene
     scene.render.engine = 'CYCLES'
     
     # Enable GPU device if available
@@ -195,30 +189,6 @@ def render_with_blender_cycles(hdr_path: str, camera_json_path: str, output_rend
             cam.location = (loc[0]/100.0, loc[1]/100.0, loc[2]/100.0)
             fov = cdata.get('fov', 50.0)
             
-    # Set camera field of view in radians
-    import math
-    cam.data.angle = math.radians(fov)
-    
-    # Create target empty for camera tracking at center height of Volvo (z=0.55m)
-    target = bpy.data.objects.new("CameraTarget", None)
-    target.location = (0.0, 0.0, 0.55)
-    scene.collection.objects.link(target)
-    
-    # Add Track To constraint pointing at the target Empty
-    constraint = cam.constraints.new(type='TRACK_TO')
-    constraint.target = target
-    constraint.track_axis = 'TRACK_NEGATIVE_Z'
-    constraint.up_axis = 'UP_Y'
-            
-    # Force unhide all objects and collections for render
-    for col in bpy.data.collections:
-        col.hide_render = False
-    for obj in bpy.data.objects:
-        obj.hide_render = False
-        
-    # Disable compositing nodes in case they are set up to filter or override output
-    scene.use_nodes = False
-
     # 6. Render & Save
     os.makedirs(os.path.dirname(output_render_path), exist_ok=True)
     scene.render.filepath = output_render_path
