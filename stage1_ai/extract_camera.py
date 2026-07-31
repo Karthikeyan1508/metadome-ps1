@@ -52,15 +52,15 @@ def extract_camera_parameters(
         camera_location = [-550.0, -550.0, 140.0]
         camera_rotation = [-5.0, 0.0, 0.0]
     elif "prompt_02" in prompt_id:
-        # Prompt 2: Side Profile — pulled far back, car centered small in frame
-        fov = 50.0
-        camera_location = [-800.0, 0.0, 120.0]
+        # Prompt 2: Front Three-Quarter driving view for Forest Road
+        fov = 42.0
+        camera_location = [-300.0, -650.0, 110.0]
         camera_rotation = [-3.0, 0.0, 0.0]
     elif "prompt_03" in prompt_id:
-        # Prompt 3: High Angle Diagonal — elevated but pulled back for full view
+        # Prompt 3: High Angle view aligned with highway perspective
         fov = 40.0
-        camera_location = [-500.0, -500.0, 350.0]
-        camera_rotation = [-20.0, 0.0, 0.0]
+        camera_location = [-250.0, -650.0, 200.0]
+        camera_rotation = [-15.0, 0.0, 0.0]
     elif "prompt_04" in prompt_id:
         # Prompt 4: Front Centered — pulled way back, not aggressive
         fov = 40.0

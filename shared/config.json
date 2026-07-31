@@ -11,13 +11,6 @@
   },
   "prompts": [
     {
-      "id": "prompt_01",
-      "name": "Urban Night Street",
-      "text": "wet city street at night, neon signs reflecting in rain puddles, cinematic lighting, bokeh city lights in background, dark blue hour sky, asphalt road, photorealistic",
-      "camera": "front_three_quarter_hero",
-      "negative_prompt": "daylight, sunny, people, text, watermark, blurry car"
-    },
-    {
       "id": "prompt_02",
       "name": "Forest Mist",
       "text": "forest road, morning mist between tall pine trees, soft diffused overcast light, damp dark asphalt, fog particles in air, photorealistic nature photography, shallow depth of field background",
@@ -30,6 +23,15 @@
       "text": "desert highway, golden hour, sand dunes stretching to horizon, harsh directional warm sunlight, heat haze on asphalt, dust particles in air, photorealistic landscape photography",
       "camera": "overhead_high_angle",
       "negative_prompt": "night, overcast, green vegetation, buildings, people, text"
+    }
+  ],
+  "disabled_prompts": [
+    {
+      "id": "prompt_01",
+      "name": "Urban Night Street",
+      "text": "wet city street at night, neon signs reflecting in rain puddles, cinematic lighting, bokeh city lights in background, dark blue hour sky, asphalt road, photorealistic",
+      "camera": "front_three_quarter_hero",
+      "negative_prompt": "daylight, sunny, people, text, watermark, blurry car"
     },
     {
       "id": "prompt_04",
