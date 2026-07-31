@@ -51,9 +51,15 @@ def render_with_blender_cycles(hdr_path: str, camera_json_path: str, output_rend
 
     print(f"[Blender Cycles] Initializing path-traced render scene...")
     
-    # 1. Reset factory scene
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    scene = bpy.context.scene
+    # 1. Reset factory scene or load native .blend
+    if car_model_path.endswith('.blend') and os.path.exists(car_model_path):
+        print(f"[Blender Cycles] Loading native vehicle scene file: {car_model_path}")
+        bpy.ops.wm.open_mainfile(filepath=car_model_path)
+        scene = bpy.context.scene
+    else:
+        bpy.ops.wm.read_factory_settings(use_empty=True)
+        scene = bpy.context.scene
+        
     scene.render.engine = 'CYCLES'
     
     # Enable GPU device if available
