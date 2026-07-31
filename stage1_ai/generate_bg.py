@@ -198,6 +198,44 @@ def generate_background_fallback(prompt: str, output_path: str, width: int = 192
     print(f"[Fallback Gen] Saved background plate to: {output_path}")
     return output_path
 
+def generate_background_flux(prompt: str, output_path: str, width: int = 1920, height: int = 1080):
+    """
+    Generates background plate using HuggingFace Inference API for FLUX.
+    """
+    HF_TOKEN = os.environ.get("HF_TOKEN", "")
+    API_URL = "https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-dev"
+    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    
+    print(f"[FLUX HF] Generating: '{prompt[:80]}...'")
+    print(f"[FLUX HF] This takes 15-30 seconds...")
+    
+    payload = {
+        "inputs": f"{prompt}, photorealistic, 8k, professional photography",
+        "parameters": {
+            "width": width,
+            "height": height,
+            "num_inference_steps": 28,
+            "guidance_scale": 3.5,
+        }
+    }
+    
+    import requests
+    import io
+    try:
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+        if response.status_code == 200:
+            image = Image.open(io.BytesIO(response.content))
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            image.save(output_path)
+            print(f"[FLUX HF] ✅ Saved: {output_path}")
+            return output_path
+        else:
+            print(f"[FLUX HF] ❌ Error {response.status_code}: {response.text}")
+            raise Exception(f"API failed: {response.text}")
+    except Exception as e:
+        print(f"[FLUX HF Warning] FLUX generation failed: {e}. Switching to procedural background generator.")
+        return generate_background_fallback(prompt, output_path, width, height)
+
 def generate_background_sdxl(prompt: str, output_path: str, width: int = 1920, height: int = 1080):
     """
     Generates background plate using local Diffusers SDXL pipeline.
@@ -246,7 +284,7 @@ def main():
     if args.use_fallback:
         generate_background_fallback(args.prompt, args.output, args.width, args.height)
     else:
-        generate_background_sdxl(args.prompt, args.output, args.width, args.height)
+        generate_background_flux(args.prompt, args.output, args.width, args.height)
 
 if __name__ == "__main__":
     main()
