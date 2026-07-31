@@ -39,6 +39,6 @@
   "paths": {
     "output_dir": "outputs",
     "test_assets_dir": "test_assets",
-    "car_model_path": "assets/volvo.blend"
+    "car_model_path": "assets/Volvo S90.blend"
   }
 }
