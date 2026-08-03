@@ -167,6 +167,7 @@ def run_pipeline(config_path: str = "shared/config.json", use_fallback: bool = F
 
         # ======================================================
         # STAGE 1 — HDR ESTIMATION
+        # Extract 32-bit HDR light map from the AI background plate
         # ======================================================
 
         print("[Stage 1] HDR Light Estimation")
@@ -182,25 +183,6 @@ def run_pipeline(config_path: str = "shared/config.json", use_fallback: bool = F
             check=True,
         )
 
-        # ======================================================
-        # STAGE 1 — CAMERA REFINEMENT
-        # Now that the background exists, re-run camera extraction
-        # to refine pitch/roll from the actual image horizon.
-        # ======================================================
-
-        print("[Stage 1] Camera Parameter Refinement (image-derived horizon)")
-
-        subprocess.run(
-            [
-                sys.executable,
-                "stage1_ai/extract_camera.py",
-                "--prompt_id", pid,
-                "--input", bg_path,
-                "--depth", depth_path,
-                "--output", cam_path,
-            ],
-            check=True,
-        )
 
         # ======================================================
         # STAGE 2 — BEAUTY RENDER (Karthi)
