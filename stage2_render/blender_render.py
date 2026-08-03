@@ -155,42 +155,62 @@ def render_depth_pass(
 
 def _convert_exr_depth_to_png(exr_path: str) -> str:
     """
-    Reads the Z-depth channel from the EXR and saves a normalised 8-bit PNG
-    suitable for ControlNet conditioning.
+    Convert the Z-depth EXR to a normalised 8-bit PNG for ControlNet.
+    Uses Blender's native bpy + numpy (both bundled) instead of cv2
+    (which is NOT available in Blender's embedded Python environment).
+
     White = near, Black = far (inverted so near objects are prominent).
     """
-    import numpy as np
-    import cv2
-
     png_path = exr_path.replace('.exr', '_depth_map.png')
+    try:
+        import bpy
+        import numpy as np
 
-    img = cv2.imread(exr_path, cv2.IMREAD_UNCHANGED)
-    if img is None:
-        print(f"[Depth Pass] WARNING: Could not read EXR for PNG conversion: {exr_path}")
-        return png_path
+        # Load the rendered EXR into Blender's image buffer
+        img = bpy.data.images.load(exr_path)
+        w, h = img.size
 
-    # EXR from Cycles Z-pass: single-channel or first channel = Z depth
-    if len(img.shape) == 3:
-        depth_ch = img[:, :, 0].astype(np.float32)
-    else:
-        depth_ch = img.astype(np.float32)
+        # img.pixels is a flat RGBA float32 array (bottom-up row order)
+        pixels = np.array(img.pixels[:], dtype=np.float32)
+        pixels = pixels.reshape(h, w, 4)
 
-    # Clamp infinite/NaN values (sky = inf in Z-pass)
-    finite_mask = np.isfinite(depth_ch)
-    if finite_mask.any():
-        max_finite = depth_ch[finite_mask].max()
-        depth_ch[~finite_mask] = max_finite
+        # R channel = Z depth from the first Cycles render pass
+        depth_ch = pixels[:, :, 0].copy()
 
-    # Normalise 0→1, then invert so near = white
-    d_min, d_max = depth_ch.min(), depth_ch.max()
-    if d_max > d_min:
-        depth_norm = 1.0 - (depth_ch - d_min) / (d_max - d_min)
-    else:
-        depth_norm = np.zeros_like(depth_ch)
+        # Clamp infinite/NaN (sky rays return inf in Z-pass)
+        finite_mask = np.isfinite(depth_ch)
+        if finite_mask.any():
+            max_finite = depth_ch[finite_mask].max()
+            depth_ch[~finite_mask] = max_finite
 
-    depth_png = (depth_norm * 255).astype(np.uint8)
-    cv2.imwrite(png_path, depth_png)
-    print(f"[Depth Pass] ControlNet PNG saved: {png_path}")
+        # Normalise 0→1, invert so near = bright
+        d_min, d_max = depth_ch.min(), depth_ch.max()
+        if d_max > d_min:
+            depth_norm = 1.0 - (depth_ch - d_min) / (d_max - d_min)
+        else:
+            depth_norm = np.zeros_like(depth_ch)
+
+        # Build a greyscale RGBA image for Blender to save as PNG
+        depth_rgba = np.zeros((h, w, 4), dtype=np.float32)
+        depth_rgba[:, :, 0] = depth_norm
+        depth_rgba[:, :, 1] = depth_norm
+        depth_rgba[:, :, 2] = depth_norm
+        depth_rgba[:, :, 3] = 1.0
+
+        out_img = bpy.data.images.new("DepthPNG", width=w, height=h, float_buffer=False)
+        out_img.pixels = depth_rgba.flatten().tolist()
+        out_img.filepath_raw = png_path
+        out_img.file_format = 'PNG'
+        out_img.save()
+
+        bpy.data.images.remove(img)
+        bpy.data.images.remove(out_img)
+
+        print(f"[Depth Pass] ControlNet PNG saved: {png_path}")
+
+    except Exception as e:
+        print(f"[Depth Pass] WARNING: PNG conversion failed ({e}). ControlNet will fall back to Pollinations.")
+
     return png_path
 
 
@@ -349,7 +369,11 @@ def render_with_blender_cycles(
         bsdf.inputs['Base Color'].default_value = (0.05, 0.2, 0.8, 1.0)
         bsdf.inputs['Metallic'].default_value = 0.95
         bsdf.inputs['Roughness'].default_value = 0.1
-        bsdf.inputs['Clearcoat'].default_value = 1.0
+        # 'Clearcoat' was renamed to 'Coat' in Blender 5.x
+        for coat_key in ('Coat', 'Clearcoat'):
+            if coat_key in bsdf.inputs:
+                bsdf.inputs[coat_key].default_value = 1.0
+                break
         car.data.materials.append(mat)
 
     # ------------------------------------------------------------------ camera

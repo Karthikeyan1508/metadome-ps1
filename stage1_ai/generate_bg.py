@@ -332,22 +332,22 @@ def generate_background_controlnet_depth(
     print(f"[ControlNet] Condition scale: {condition_scale}")
 
     try:
-        output = replicate.run(
-            # SDXL ControlNet Depth — accepts depth image + prompt
-            "lucataco/sdxl-controlnet-depth:2f5b2e...d8f2a3",
-            input={
-                "prompt": enhanced_prompt,
-                "negative_prompt": full_negative,
-                "image": depth_data_uri,
-                "condition_scale": condition_scale,
-                "num_inference_steps": 30,
-                "guidance_scale": 7.5,
-                "width": min(width, 1024),   # SDXL native max
-                "height": min(height, 1024),
-            },
-        )
+        # Open depth map as a binary file — replicate client uploads it automatically
+        with open(depth_map_path, "rb") as depth_file:
+            output = replicate.run(
+                # Pinned to latest stable version (2023-09-12)
+                "lucataco/sdxl-controlnet-depth:465fb41789dc2203a9d7158be11d1d2570606a039c65e0e236fd329b5eecb10c",
+                input={
+                    "prompt": enhanced_prompt,
+                    "negative_prompt": full_negative,
+                    "image": depth_file,
+                    "condition_scale": condition_scale,
+                    "num_inference_steps": 30,
+                    "guidance_scale": 7.5,
+                },
+            )
 
-        image_url = output[0] if isinstance(output, list) else output
+        image_url = output[0] if isinstance(output, list) else str(output)
 
         print(f"[ControlNet] Downloading result...")
         response = requests.get(image_url, timeout=60)
@@ -374,7 +374,7 @@ def generate_background_controlnet_depth(
         print(f"[ControlNet] Failed: {e}")
         # Mark this output with _fallback suffix and use Pollinations
         fallback_path = output_path.replace(".png", "_fallback.png")
-        print(f"[ControlNet] Falling back to Pollinations → {fallback_path}")
+        print(f"[ControlNet] Falling back to Pollinations -> {fallback_path}")
         result = generate_background_pollinations(
             prompt, fallback_path, width, height, negative_prompt=negative_prompt
         )
