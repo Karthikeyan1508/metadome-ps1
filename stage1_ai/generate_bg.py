@@ -263,6 +263,127 @@ def generate_procedural_background(prompt: str, output_path: str,
     return output_path
 
 
+def generate_background_controlnet_depth(
+    prompt: str,
+    depth_map_path: str,
+    output_path: str,
+    width: int = 1920,
+    height: int = 1080,
+    negative_prompt: str = "",
+    condition_scale: float = 0.8,
+):
+    """
+    Generate a background conditioned on a Blender depth pass using
+    Replicate's SDXL ControlNet Depth model.
+
+    This guarantees the AI background has the same camera perspective,
+    horizon line, and vanishing point as the 3D scene — eliminating the
+    'pasted on' look from perspective mismatch.
+
+    Falls back to Pollinations if ControlNet fails or no token is set.
+
+    Parameters
+    ----------
+    prompt : str
+        Scene description prompt.
+    depth_map_path : str
+        Path to the normalised 8-bit depth PNG rendered by Blender.
+    output_path : str
+        Destination for the generated background PNG.
+    condition_scale : float
+        How strongly the depth map controls the output (0.0 – 1.0).
+        0.8 = strong structural adherence while allowing creative freedom.
+    """
+    if not REPLICATE_API_TOKEN:
+        print("[ControlNet] No REPLICATE_API_TOKEN set — falling back to Pollinations")
+        return generate_background_pollinations(
+            prompt, output_path, width, height, negative_prompt=negative_prompt
+        )
+
+    if not os.path.exists(depth_map_path):
+        print(f"[ControlNet] Depth map not found: {depth_map_path} — falling back to Pollinations")
+        return generate_background_pollinations(
+            prompt, output_path, width, height, negative_prompt=negative_prompt
+        )
+
+    import replicate
+    import base64
+
+    os.environ["REPLICATE_API_TOKEN"] = REPLICATE_API_TOKEN
+
+    enhanced_prompt = (
+        f"{prompt}, photorealistic, professional landscape photography, "
+        f"8k ultra HD, sharp focus, natural lighting, rich colors, wide angle, "
+        f"highly detailed, no car, no vehicle"
+    )
+    full_negative = (
+        f"car, vehicle, automobile, people, person, text, watermark, logo, "
+        f"blurry, low quality, distorted, cartoon, CGI, 3d render, {negative_prompt}"
+    )
+
+    # Read depth map as base64 for Replicate API
+    with open(depth_map_path, "rb") as f:
+        depth_b64 = base64.b64encode(f.read()).decode("utf-8")
+    depth_data_uri = f"data:image/png;base64,{depth_b64}"
+
+    print(f"[ControlNet] Generating depth-conditioned background...")
+    print(f"[ControlNet] Prompt: '{prompt[:80]}...'")
+    print(f"[ControlNet] Depth map: {depth_map_path}")
+    print(f"[ControlNet] Condition scale: {condition_scale}")
+
+    try:
+        output = replicate.run(
+            # SDXL ControlNet Depth — accepts depth image + prompt
+            "lucataco/sdxl-controlnet-depth:2f5b2e...d8f2a3",
+            input={
+                "prompt": enhanced_prompt,
+                "negative_prompt": full_negative,
+                "image": depth_data_uri,
+                "condition_scale": condition_scale,
+                "num_inference_steps": 30,
+                "guidance_scale": 7.5,
+                "width": min(width, 1024),   # SDXL native max
+                "height": min(height, 1024),
+            },
+        )
+
+        image_url = output[0] if isinstance(output, list) else output
+
+        print(f"[ControlNet] Downloading result...")
+        response = requests.get(image_url, timeout=60)
+        response.raise_for_status()
+
+        image = Image.open(io.BytesIO(response.content))
+
+        # Upscale to target resolution if needed
+        if image.size != (width, height):
+            image = image.resize((width, height), Image.LANCZOS)
+
+        image = ImageEnhance.Sharpness(image).enhance(1.15)
+        image = ImageEnhance.Contrast(image).enhance(1.05)
+        image = ImageEnhance.Color(image).enhance(1.05)
+
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        image.save(output_path, "PNG", quality=100)
+
+        file_size = os.path.getsize(output_path) / (1024 * 1024)
+        print(f"[ControlNet] Saved: {output_path} ({image.size[0]}x{image.size[1]}, {file_size:.1f}MB)")
+        return output_path
+
+    except Exception as e:
+        print(f"[ControlNet] Failed: {e}")
+        # Mark this output with _fallback suffix and use Pollinations
+        fallback_path = output_path.replace(".png", "_fallback.png")
+        print(f"[ControlNet] Falling back to Pollinations → {fallback_path}")
+        result = generate_background_pollinations(
+            prompt, fallback_path, width, height, negative_prompt=negative_prompt
+        )
+        # Copy to the expected output path so the pipeline can continue
+        import shutil
+        shutil.copy(fallback_path, output_path)
+        return output_path
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--prompt", type=str, required=True)
@@ -274,15 +395,28 @@ def main():
     parser.add_argument("--seed", type=int, default=None)
     parser.add_argument("--model", type=str, default="flux", help="Pollinations model, e.g. flux or turbo")
     parser.add_argument("--engine", type=str, default="pollinations",
-                         choices=["pollinations", "replicate", "procedural"],
-                         help="Which backend to use (default: pollinations, free)")
+                         choices=["pollinations", "replicate", "procedural", "controlnet"],
+                         help="Backend: pollinations (free), replicate (paid SDXL), "
+                              "controlnet (depth-conditioned SDXL), procedural (offline)")
+    parser.add_argument("--depth_map", type=str, default=None,
+                         help="Path to Blender depth map PNG for ControlNet conditioning. "
+                              "When provided with --engine controlnet, generates a background "
+                              "that matches the exact camera perspective of the 3D scene.")
+    parser.add_argument("--condition_scale", type=float, default=0.8,
+                         help="ControlNet conditioning strength (0.0-1.0, default 0.8)")
 
     args = parser.parse_args()
+    negative = getattr(args, 'negative_prompt', '')
 
-    if args.engine == "pollinations":
+    if args.engine == "controlnet" or (args.depth_map and os.path.exists(args.depth_map or '')):
+        generate_background_controlnet_depth(
+            args.prompt, args.depth_map, args.output, args.width, args.height,
+            negative_prompt=negative, condition_scale=args.condition_scale,
+        )
+    elif args.engine == "pollinations":
         generate_background_pollinations(
             args.prompt, args.output, args.width, args.height,
-            negative_prompt=args.negative_prompt, model=args.model, seed=args.seed
+            negative_prompt=negative, model=args.model, seed=args.seed
         )
     elif args.engine == "replicate":
         if REPLICATE_API_TOKEN:
@@ -291,7 +425,7 @@ def main():
             print("[WARNING] No REPLICATE_API_TOKEN set. Using Pollinations instead.")
             generate_background_pollinations(
                 args.prompt, args.output, args.width, args.height,
-                negative_prompt=args.negative_prompt, model=args.model, seed=args.seed
+                negative_prompt=negative, model=args.model, seed=args.seed
             )
     else:
         generate_procedural_background(args.prompt, args.output, args.width, args.height)
