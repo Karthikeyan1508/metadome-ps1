@@ -128,6 +128,7 @@ def run_pipeline(config_path: str = "shared/config.json", use_fallback: bool = F
             "stage1_ai/generate_bg.py",
             "--prompt", text_prompt,
             "--output", bg_path,
+            "--camera_json", cam_path,
         ]
 
         if negative_prompt:

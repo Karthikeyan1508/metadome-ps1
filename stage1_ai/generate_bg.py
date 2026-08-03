@@ -31,20 +31,35 @@ def generate_background_pollinations(prompt: str, output_path: str,
                                       negative_prompt: str = "",
                                       model: str = "flux",
                                       seed: int = None,
+                                      camera_json_path: str = None,
                                       enhance: bool = True):
     """
     Generate an image using Pollinations.ai's free image API.
-    No API key required. Uses the 'flux' model by default (photorealistic,
-    good general-purpose quality). There is no native negative_prompt
-    parameter in this API, so exclusions are folded into the main prompt
-    text instead (e.g. "no people, no text, no watermark").
+    No API key required. Inject perspective constraints from camera.json
+    so the generated landscape aligns with Blender's camera vanishing point.
     """
-    full_prompt = prompt
+    perspective_tags = "photorealistic automotive background plate, wide angle 35mm, crisp asphalt road in lower half, straight horizon line"
+    if camera_json_path and os.path.exists(camera_json_path):
+        try:
+            with open(camera_json_path, 'r') as f:
+                cdata = json.load(f)
+            rot = cdata.get('camera_rotation', [-3.5, 0.0, 0.0])
+            pitch = rot[0]
+            if pitch < -8.0:
+                perspective_tags = "overhead high angle landscape view, receding road stretching to high horizon"
+            elif pitch < 0.0:
+                perspective_tags = "eye-level automotive photography, asphalt road receding to central vanishing point at horizon"
+            else:
+                perspective_tags = "low angle ground view, road surface filling lower frame"
+        except Exception:
+            pass
+
+    full_prompt = f"{prompt}, {perspective_tags}"
     if negative_prompt:
         exclusions = ", ".join(
             f"no {term.strip()}" for term in negative_prompt.split(",") if term.strip()
         )
-        full_prompt = f"{prompt}, {exclusions}"
+        full_prompt = f"{full_prompt}, {exclusions}"
 
     encoded_prompt = quote(full_prompt)
     url = f"https://image.pollinations.ai/prompt/{encoded_prompt}"
@@ -68,6 +83,10 @@ def generate_background_pollinations(prompt: str, output_path: str,
         response.raise_for_status()
 
         image = Image.open(io.BytesIO(response.content))
+
+        # Upscale to full target resolution (1920x1080) if needed
+        if image.size != (width, height):
+            image = image.resize((width, height), Image.LANCZOS)
 
         # Light post-processing to match the original pipeline's look
         image = ImageEnhance.Sharpness(image).enhance(1.15)
@@ -404,6 +423,8 @@ def main():
                               "that matches the exact camera perspective of the 3D scene.")
     parser.add_argument("--condition_scale", type=float, default=0.8,
                          help="ControlNet conditioning strength (0.0-1.0, default 0.8)")
+    parser.add_argument("--camera_json", type=str, default=None,
+                         help="Path to camera.json to inject perspective constraints")
 
     args = parser.parse_args()
     negative = getattr(args, 'negative_prompt', '')
@@ -416,7 +437,8 @@ def main():
     elif args.engine == "pollinations":
         generate_background_pollinations(
             args.prompt, args.output, args.width, args.height,
-            negative_prompt=negative, model=args.model, seed=args.seed
+            negative_prompt=negative, model=args.model, seed=args.seed,
+            camera_json_path=args.camera_json
         )
     elif args.engine == "replicate":
         if REPLICATE_API_TOKEN:
