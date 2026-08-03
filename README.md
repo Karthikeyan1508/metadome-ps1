@@ -504,6 +504,14 @@ Each prompt generates a complete folder under `outputs/<prompt_id>/`:
 
 ---
 
+### Prompt 06 — Urban Motion Speed
+
+> Camera: Low angle ground-level dynamic tracking shot. High-speed horizontal motion blur light streaks, tall glass skyscrapers in background, bright daylight.
+
+![Urban Motion Speed Final Output](docs/images/prompt_06_urban_motion.png)
+
+---
+
 ### Prompt 04 — Wet Racetrack
 
 > Camera: Front centered, pulled back. Dramatic overcast sky, wet tarmac, motorsport atmosphere.

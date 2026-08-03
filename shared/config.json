@@ -23,6 +23,13 @@
       "text": "straight two-lane asphalt highway down center of frame, desert highway, golden hour, sand dunes on both sides stretching to horizon, harsh directional warm sunlight, heat haze on asphalt, eye-level landscape photography, central vanishing point",
       "camera": "overhead_high_angle",
       "negative_prompt": "night, overcast, green vegetation, buildings, people, text, off-center road, curved road, crooked road, diagonal road, side view"
+    },
+    {
+      "id": "prompt_06",
+      "name": "Urban Motion Speed",
+      "text": "low angle dynamic action shot of modern city street, high-speed horizontal motion blur light streaks on side, tall glass skyscrapers in background, bright daylight, cinematic automotive tracking shot",
+      "camera": "low_angle_tracking",
+      "negative_prompt": "trees, forest, desert, night, overcast, static background, people, text, watermark, blurry car"
     }
   ],
   "disabled_prompts": [

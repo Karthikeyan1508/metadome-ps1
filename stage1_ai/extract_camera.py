@@ -99,6 +99,8 @@ def extract_camera_parameters(
                            camera_rotation=[-2.5, 0.0, 0.0], road_based=True),
         "prompt_05": dict(fov=40.0, camera_location=[-140.0, 720.0, 105.0],
                            camera_rotation=[-3.0, 0.0, 0.0], road_based=False),
+        "prompt_06": dict(fov=42.0, camera_location=[-320.0, -580.0, 75.0],
+                           camera_rotation=[1.5, 0.0, 0.0], road_based=False),
     }
 
     key = next((k for k in PRESETS if k in prompt_id), "prompt_02")
