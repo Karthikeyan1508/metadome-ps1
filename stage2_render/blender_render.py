@@ -111,25 +111,27 @@ def render_depth_pass(
 
     # ------------------------------------------------------------------ camera
     import math
-    bpy.ops.object.camera_add(location=(0, -4.5, 1.1))
+    bpy.ops.object.camera_add(location=(0, -8.5, 1.3))
     cam = bpy.context.active_object
     scene.camera = cam
 
-    fov = 50.0
+    fov = 38.0
     if os.path.exists(camera_json_path):
         with open(camera_json_path, 'r') as f:
             cdata = json.load(f)
-        loc = cdata.get('camera_location', [0, -450.0, 110.0])
+        loc = cdata.get('camera_location', [0, -850.0, 130.0])
         cam.location = (loc[0] / 100.0, loc[1] / 100.0, loc[2] / 100.0)
-        fov = cdata.get('fov', 50.0)
-        rot = cdata.get('camera_rotation', [-3.5, 0.0, 0.0])
-        cam.rotation_euler = (
-            math.radians(90 + rot[0]),
-            math.radians(rot[2]),
-            math.radians(rot[1]),
-        )
+        fov = cdata.get('fov', 38.0)
 
     cam.data.angle = math.radians(fov)
+
+    target = bpy.data.objects.new("CameraTarget", None)
+    target.location = (0.0, 0.0, 0.55)
+    scene.collection.objects.link(target)
+    constraint = cam.constraints.new(type='TRACK_TO')
+    constraint.target = target
+    constraint.track_axis = 'TRACK_NEGATIVE_Z'
+    constraint.up_axis = 'UP_Y'
 
     # ------------------------------------------------------------------ render
     os.makedirs(os.path.dirname(output_exr_path), exist_ok=True)
