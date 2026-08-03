@@ -380,22 +380,22 @@ def render_with_blender_cycles(
 
     # ------------------------------------------------------------------ camera
     import math
-    bpy.ops.object.camera_add(location=(0, -4.5, 1.1))
+    bpy.ops.object.camera_add(location=(-1.3, -7.2, 1.05))
     cam = bpy.context.active_object
     scene.camera = cam
 
-    fov = 50.0
+    fov = 40.0
     if os.path.exists(camera_json_path):
         with open(camera_json_path, 'r') as f:
             cdata = json.load(f)
-        loc = cdata.get('camera_location', [0, -450.0, 110.0])
+        loc = cdata.get('camera_location', [-130.0, -720.0, 105.0])
         cam.location = (loc[0] / 100.0, loc[1] / 100.0, loc[2] / 100.0)
-        fov = cdata.get('fov', 50.0)
+        fov = cdata.get('fov', 40.0)
 
     cam.data.angle = math.radians(fov)
 
     target = bpy.data.objects.new("CameraTarget", None)
-    target.location = (0.0, 0.0, 0.55)
+    target.location = (0.0, 0.0, 0.45)
     scene.collection.objects.link(target)
     constraint = cam.constraints.new(type='TRACK_TO')
     constraint.target = target

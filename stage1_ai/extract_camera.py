@@ -87,18 +87,18 @@ def extract_camera_parameters(
     print(f"[Camera Matcher] Processing: {input_image_path} (ID: {prompt_id})")
 
     # Camera location presets (in cm)
-    # Pulled back to Y = -850cm to -950cm (-8.5m to -9.5m) so full car is framed nicely
+    # X=-120 to -140cm (centered on road lane), Y=-720cm (-7.2m framing distance), Z=105cm (eye-level height)
     PRESETS = {
-        "prompt_01": dict(fov=38.0, camera_location=[-400.0, -850.0, 150.0],
-                           camera_rotation=[-5.0, 0.0, 0.0], road_based=False),
-        "prompt_02": dict(fov=36.0, camera_location=[-350.0, -850.0, 130.0],
+        "prompt_01": dict(fov=40.0, camera_location=[-140.0, -720.0, 105.0],
+                           camera_rotation=[-3.0, 0.0, 0.0], road_based=False),
+        "prompt_02": dict(fov=40.0, camera_location=[-140.0, -720.0, 105.0],
                            camera_rotation=[-3.0, 0.0, 0.0], road_based=True),
-        "prompt_03": dict(fov=36.0, camera_location=[-300.0, -850.0, 220.0],
-                           camera_rotation=[-12.0, 0.0, 0.0], road_based=True),
-        "prompt_04": dict(fov=36.0, camera_location=[0.0, -900.0, 130.0],
-                           camera_rotation=[-4.0, 0.0, 0.0], road_based=True),
-        "prompt_05": dict(fov=38.0, camera_location=[-400.0, 850.0, 150.0],
-                           camera_rotation=[-5.0, 0.0, 0.0], road_based=False),
+        "prompt_03": dict(fov=40.0, camera_location=[-120.0, -720.0, 105.0],
+                           camera_rotation=[-3.0, 0.0, 0.0], road_based=True),
+        "prompt_04": dict(fov=40.0, camera_location=[0.0, -750.0, 100.0],
+                           camera_rotation=[-2.5, 0.0, 0.0], road_based=True),
+        "prompt_05": dict(fov=40.0, camera_location=[-140.0, 720.0, 105.0],
+                           camera_rotation=[-3.0, 0.0, 0.0], road_based=False),
     }
 
     key = next((k for k in PRESETS if k in prompt_id), "prompt_02")
@@ -121,7 +121,9 @@ def extract_camera_parameters(
 
                 if h_conf >= 0.15:
                     measured_pitch = pitch_from_horizon(horizon_row, h, fov)
-                    camera_rotation[0] = round(measured_pitch, 2)
+                    # Clamp pitch angle between -4.5deg and -1.5deg to prevent car from floating
+                    clamped_pitch = float(np.clip(measured_pitch, -4.5, -1.5))
+                    camera_rotation[0] = round(clamped_pitch, 2)
                     detection_info["pitch_confidence"] = round(h_conf, 2)
                     detection_info["method"] = "image_derived"
                 else:

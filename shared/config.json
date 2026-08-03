@@ -13,16 +13,16 @@
     {
       "id": "prompt_02",
       "name": "Forest Mist",
-      "text": "forest road, morning mist between tall pine trees, soft diffused overcast light, damp dark asphalt, fog particles in air, photorealistic nature photography, shallow depth of field background",
+      "text": "straight asphalt road down center of frame, forest road, morning mist between tall pine trees, soft diffused overcast light, damp dark asphalt, fog particles in air, eye-level automotive photography, central vanishing point",
       "camera": "side_profile_telephoto",
-      "negative_prompt": "sunlight, harsh shadows, buildings, cars, people, text"
+      "negative_prompt": "sunlight, harsh shadows, buildings, cars, people, text, off-center road, curved road, crooked road, diagonal road, side view"
     },
     {
       "id": "prompt_03",
       "name": "Desert Highway",
-      "text": "desert highway, golden hour, sand dunes stretching to horizon, harsh directional warm sunlight, heat haze on asphalt, dust particles in air, photorealistic landscape photography",
+      "text": "straight two-lane asphalt highway down center of frame, desert highway, golden hour, sand dunes on both sides stretching to horizon, harsh directional warm sunlight, heat haze on asphalt, eye-level landscape photography, central vanishing point",
       "camera": "overhead_high_angle",
-      "negative_prompt": "night, overcast, green vegetation, buildings, people, text"
+      "negative_prompt": "night, overcast, green vegetation, buildings, people, text, off-center road, curved road, crooked road, diagonal road, side view"
     }
   ],
   "disabled_prompts": [
